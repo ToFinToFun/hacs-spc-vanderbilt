@@ -13,8 +13,9 @@ from .const import DOOR_ACCESS_EVENT_TYPES, SIGNAL_DOOR_ACCESS, SIGNAL_NEW_DOORS
 from .entity import SpcEdpEntity
 from .hub import SpcEdpHub
 
-# Access descriptions are "<door>¦<user>¦<user id>¦<card>¦<direction>[¦...]".
-_ACCESS_FIELDS = ("door", "user", "user_id", "card", "direction")
+# Access descriptions are "<door>¦<user>¦<user id>¦<card>¦<direction>[¦<reason>]";
+# denied attempts append the panel's numeric reason code.
+_ACCESS_FIELDS = ("door", "user", "user_id", "card", "direction", "reason")
 
 
 def access_attributes(event: SiaEvent) -> dict[str, str]:

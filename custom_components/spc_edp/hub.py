@@ -163,6 +163,9 @@ class SpcEdpHub:
 
     async def _handle_sia_event(self, panel: Panel, event: SiaEvent) -> None:
         """Publish zone events and authoritative area-state reads."""
+        _LOGGER.debug(
+            "SIA event %s address=%s: %s", event.sia_code, event.address, event.description
+        )
         try:
             async with self._refresh_lock:
                 update = await panel.reconcile_event(event)
@@ -175,6 +178,7 @@ class SpcEdpHub:
             )
             update = panel.apply_event(event)
 
+        _LOGGER.debug("SIA event %s updated %s", event.sia_code, update)
         self._announce_new_entities()
         entry_id = self.entry.entry_id
         for zone_id in update.zone_ids:

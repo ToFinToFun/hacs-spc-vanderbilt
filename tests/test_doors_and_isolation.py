@@ -127,6 +127,7 @@ def test_access_attributes_from_captured_event() -> None:
     }
     denied = _event("DD", "3", "Entredörr¦¦0¦0¦ENTRY¦4")
     assert access_attributes(denied)["user_id"] == "0"
+    assert access_attributes(denied)["reason"] == "4"
     assert "user" not in access_attributes(denied)
 
 
