@@ -1,4 +1,4 @@
-"""Own one panel connection and publish sensor and alarm-area updates."""
+"""Own one panel connection and publish sensor, alarm-area and door updates."""
 
 from __future__ import annotations
 
@@ -24,10 +24,14 @@ from .const import (
     CONF_RECEIVER_ID,
     DEFAULT_AREA_REFRESH_INTERVAL,
     DEFAULT_IDLE_TIMEOUT,
+    DOOR_ACCESS_EVENT_TYPES,
     SIGNAL_AVAILABILITY,
+    SIGNAL_DOOR_ACCESS,
     SIGNAL_NEW_AREAS,
+    SIGNAL_NEW_DOORS,
     SIGNAL_NEW_ZONES,
     SIGNAL_UPDATE_AREA,
+    SIGNAL_UPDATE_DOOR,
     SIGNAL_UPDATE_ZONE,
 )
 
@@ -121,6 +125,7 @@ class SpcEdpHub:
         self._session = session
         try:
             self.panel = await Panel.from_session(session)
+            await self._refresh_doors(self.panel)
             self.available = True
             self._announce_new_entities()
             self._async_set_availability(True)
@@ -146,6 +151,15 @@ class SpcEdpHub:
         entry_id = self.entry.entry_id
         async_dispatcher_send(self.hass, SIGNAL_NEW_AREAS.format(entry_id), set(self.panel.areas))
         async_dispatcher_send(self.hass, SIGNAL_NEW_ZONES.format(entry_id), set(self.panel.zones))
+        async_dispatcher_send(self.hass, SIGNAL_NEW_DOORS.format(entry_id), set(self.panel.doors))
+
+    @staticmethod
+    async def _refresh_doors(panel: Panel) -> None:
+        """Read doors; panels without access control simply report none."""
+        try:
+            await panel.refresh_doors()
+        except SpcError:
+            _LOGGER.debug("Door status refresh failed", exc_info=True)
 
     async def _handle_sia_event(self, panel: Panel, event: SiaEvent) -> None:
         """Publish zone events and authoritative area-state reads."""
@@ -167,6 +181,13 @@ class SpcEdpHub:
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id))
         for area_id in update.area_ids:
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id))
+        for door_id in update.door_ids:
+            async_dispatcher_send(self.hass, SIGNAL_UPDATE_DOOR.format(entry_id, door_id))
+        address = event.address.strip()
+        if event.sia_code.upper() in DOOR_ACCESS_EVENT_TYPES and address.isdigit():
+            async_dispatcher_send(
+                self.hass, SIGNAL_DOOR_ACCESS.format(entry_id, int(address)), event
+            )
 
     def _start_area_refresh(self) -> None:
         self._stop_area_refresh()
@@ -194,8 +215,10 @@ class SpcEdpHub:
                     return
                 area_ids = set(panel.areas)
                 zone_ids = set(panel.zones)
+                door_ids = set(panel.doors)
                 await panel.refresh_areas()
                 await panel.refresh_zones()
+                await self._refresh_doors(panel)
         except SpcError:
             _LOGGER.debug("Area/zone reconciliation refresh failed", exc_info=True)
         if panel is not self.panel or not self.available:
@@ -206,3 +229,5 @@ class SpcEdpHub:
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id))
         for zone_id in zone_ids | set(panel.zones):
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id))
+        for door_id in door_ids | set(panel.doors):
+            async_dispatcher_send(self.hass, SIGNAL_UPDATE_DOOR.format(entry_id, door_id))

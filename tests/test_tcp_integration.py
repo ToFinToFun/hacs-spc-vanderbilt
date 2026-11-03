@@ -15,11 +15,12 @@ pytestmark = pytest.mark.usefixtures("enable_custom_integrations", "socket_enabl
 
 
 class SimulatedPanel:
-    """Two areas and two sensors, with the event bursts observed on real hardware."""
+    """Two areas, two sensors and one door, with the event bursts observed on real hardware."""
 
     def __init__(self, port, key):
         self.port, self.key = port, key
         self.modes = {1: "0", 2: "0"}
+        self.door_mode = "0"
         self.open = False
         self.sequence = 0
         self.writer = None
@@ -68,6 +69,10 @@ class SimulatedPanel:
                         f'INPUT="{int(self.open)}" TYPE="1"/>'
                         '<ZONE ID="2" ZONE_NAME="Garage PIR" AREA="2" INPUT="0" TYPE="0"/>'
                         "</ZONE_STATUS>",
+                        b"door_status": "<DOOR_STATUS>"
+                        f'<DOOR ID="1" ZONE="1" ZONE_NAME="Front Door" AREA="1" '
+                        f'MODE="{self.door_mode}" STATUS="0" DPS_INPUT="0" DRS_INPUT="0"/>'
+                        "</DOOR_STATUS>",
                     }
                     self.send(
                         10,
@@ -75,6 +80,11 @@ class SimulatedPanel:
                         b"\x01<COMMAND_REPLY>" + rows[command].encode() + b"</COMMAND_REPLY>",
                         frame.sequence,
                     )
+                elif frame.payload[0] in (BinaryOp.DOOR_SET_NORMAL, BinaryOp.DOOR_OPEN_PERMANENT):
+                    opcode, door, _ = frame.payload
+                    self.door_mode = "0" if opcode == BinaryOp.DOOR_SET_NORMAL else "2"
+                    self.send(4, 2, b"\xf0", frame.sequence)
+                    self.event("DO", door)
                 else:
                     opcode, area, _ = frame.payload
                     self.modes[area] = {
@@ -129,7 +139,7 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
     try:
         await panel.connect()
         await wait_for(
-            lambda: len(er.async_entries_for_config_entry(registry, entry.entry_id)) == 4
+            lambda: len(er.async_entries_for_config_entry(registry, entry.entry_id)) == 8
         )
         entities = {
             e.unique_id: e.entity_id
@@ -138,6 +148,7 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
         alarm = entities["test-panel-area-1"]
         other = entities["test-panel-area-2"]
         sensor = entities["test-panel-zone-1"]
+        lock = entities["test-panel-door-1"]
         await wait_for(
             lambda: hass.states.get(alarm) and hass.states.get(alarm).state == "disarmed"
         )
@@ -156,6 +167,11 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
             )
             assert hass.states.get(alarm).state == expected
             assert hass.states.get(other).state == "disarmed"
+        assert hass.states.get(lock).state == "locked"
+        await hass.services.async_call("lock", "unlock", {"entity_id": lock}, blocking=True)
+        assert hass.states.get(lock).state == "unlocked"
+        await hass.services.async_call("lock", "lock", {"entity_id": lock}, blocking=True)
+        assert hass.states.get(lock).state == "locked"
         panel.open = True
         panel.event("ZO", 1)
         await wait_for(lambda: hass.states.get(sensor).state == "on")

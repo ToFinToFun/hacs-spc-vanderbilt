@@ -34,7 +34,7 @@ async def test_initial_read_failure_releases_session_for_retry(hass):
     assert hub._session is None
     session.request_teardown.assert_called_once()
 
-    panel = Panel(MagicMock())
+    panel = Panel(MagicMock(xml_command=AsyncMock(return_value={})))
     connected = asyncio.Event()
 
     async def events():

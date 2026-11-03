@@ -1,6 +1,6 @@
 # Vanderbilt SPC for Home Assistant
 
-Local zone sensors and alarm controls for Vanderbilt/Siemens SPC panels.
+Local zone sensors, alarm, zone and door controls for Vanderbilt/Siemens SPC panels.
 The panel connects directly to Home Assistant over EDP v2; no web gateway
 or cloud service is needed. Requires Home Assistant 2026.9.3 or newer (Python 3.14.2+).
 
@@ -79,9 +79,11 @@ TCP port and encryption key.
 
 ## Use
 
-One device contains a binary sensor for each zone and an alarm entity for
-each area. Zone names come from the panel; open/active zones report `on`.
-Device classes are best-effort; change them in Home Assistant if needed.
+One device contains a binary sensor and an isolate switch for each zone, an
+alarm entity for each area, and a lock and an access event entity for each
+access-control door. Zone and door names come from the panel; open/active
+zones report `on`. Device classes are best-effort; change them in Home
+Assistant if needed.
 
 | Home Assistant action/state | SPC mode |
 | --- | --- |
@@ -95,15 +97,30 @@ Use the alarm card or the standard `alarm_control_panel.alarm_arm_home`,
 PIN is not required; access is controlled by Home Assistant and the panel's
 EDP permissions. Exit engineer mode at the panel if remote arming is rejected.
 
+| Door lock action/state | SPC door mode |
+| --- | --- |
+| Lock / `locked` | Normal (access control) |
+| Unlock / `unlocked` | Open permanently |
+| Open | Open momentarily (the door's unlock time) |
+
+A door the panel holds in its locked (no access) mode also reports `locked`;
+the `door_mode` attribute tells `normal`, `locked` and `open` apart. The
+access event entity fires `access_granted`, `access_denied` and
+`exit_request` with the user, user ID, card and direction the panel reports.
+
+Isolate switches are configuration entities: turning one on isolates the
+zone, and turning it off restores it from isolation or inhibit, whichever the
+panel reports. A zone inhibited at a keypad also shows as on.
+
 Sensors update from pushed events. Arm/disarm events trigger an immediate
 area-state read because their payload cannot reliably identify the arm mode.
-A full area/zone read runs every **30 seconds** to cover missed events and
+A full area/zone/door read runs every **30 seconds** to cover missed events and
 panels that do not stream zone changes. Under **Configure**, adjust this
 interval and the idle timeout (default **120 seconds**). Use **Reconfigure**
 to change receiver settings.
 
 Entities become unavailable on disconnect or removal from the panel;
-new zones and areas appear automatically. Alarm `triggered` is inferred
+new zones, areas and doors appear automatically. Alarm `triggered` is inferred
 from events received during the connection and clears on a confirmed disarm.
 It is not a complete panel-native record of active alarms after a restart.
 

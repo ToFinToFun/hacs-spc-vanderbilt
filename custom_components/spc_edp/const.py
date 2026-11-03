@@ -34,3 +34,13 @@ SIGNAL_UPDATE_AREA = "spc_edp_update_area_{}_{}"
 SIGNAL_UPDATE_ZONE = "spc_edp_update_zone_{}_{}"
 SIGNAL_NEW_AREAS = "spc_edp_new_areas_{}"
 SIGNAL_NEW_ZONES = "spc_edp_new_zones_{}"
+SIGNAL_UPDATE_DOOR = "spc_edp_update_door_{}_{}"
+SIGNAL_NEW_DOORS = "spc_edp_new_doors_{}"
+SIGNAL_DOOR_ACCESS = "spc_edp_door_access_{}_{}"
+
+# SIA access-control codes forwarded to door event entities.
+DOOR_ACCESS_EVENT_TYPES: dict[str, str] = {
+    "DG": "access_granted",
+    "DD": "access_denied",
+    "DX": "exit_request",
+}

@@ -1,4 +1,4 @@
-"""Vanderbilt SPC alarm controls and zone sensors."""
+"""Vanderbilt SPC alarm controls, zone sensors and door controls."""
 
 from __future__ import annotations
 
@@ -11,6 +11,9 @@ from .hub import SpcEdpHub
 PLATFORMS: list[Platform] = [
     Platform.ALARM_CONTROL_PANEL,
     Platform.BINARY_SENSOR,
+    Platform.EVENT,
+    Platform.LOCK,
+    Platform.SWITCH,
 ]
 
 type SpcEdpConfigEntry = ConfigEntry[SpcEdpHub]

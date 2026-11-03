@@ -1205,7 +1205,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "spcedp", git = "https://github.com/imduffy15/spcedp.git?rev=38020865573b83ef82635ff555b82c464af76f10" }]
+requires-dist = [{ name = "spcedp", git = "https://github.com/ToFinToFun/spcedp.git?rev=8186835f137d3441d50659836859a54a04fc7185" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2782,7 +2782,7 @@ wheels = [
 [[package]]
 name = "spcedp"
 version = "3.0.0"
-source = { git = "https://github.com/imduffy15/spcedp.git?rev=38020865573b83ef82635ff555b82c464af76f10#38020865573b83ef82635ff555b82c464af76f10" }
+source = { git = "https://github.com/ToFinToFun/spcedp.git?rev=8186835f137d3441d50659836859a54a04fc7185#8186835f137d3441d50659836859a54a04fc7185" }
 dependencies = [
     { name = "cryptography" },
 ]
