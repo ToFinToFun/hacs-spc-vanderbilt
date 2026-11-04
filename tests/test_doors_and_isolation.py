@@ -60,6 +60,8 @@ def _hub(*, doors: dict | None = None, zones: dict | None = None) -> MagicMock:
     hub.panel = MagicMock()
     hub.panel.doors = doors or {}
     hub.panel.zones = zones or {}
+    hub.panel.outputs = {}
+    hub.door_lock_outputs = {}
     hub.async_refresh = AsyncMock()
     hub.commands = CommandTracker()
     return hub
@@ -86,13 +88,14 @@ def test_lock_and_mode_select_follow_the_door_mode(
     # Whether the door stands open is its position zone, not a lock attribute.
     assert lock.extra_state_attributes == {
         "door_mode": door_mode,
+        "lock_output": None,
         "changed_by_id": None,
         "source": None,
     }
     assert select.current_option == door_mode
     assert select.options == ["locked", "normal", "unlocked"]
     assert lock.name == "Entredörr"
-    assert select.name == "Entredörr mode"
+    assert select.translation_placeholders == {"door": "Entredörr"}
 
 
 def test_door_entities_are_unavailable_for_a_missing_door() -> None:
@@ -231,7 +234,7 @@ def test_access_event_entity_fires_each_door_event(code: str, event_type: str) -
         entity._handle_access(_event("DO", "3", "Entredörr¦admin¦9998¦0"))  # a mode change
     trigger.assert_called_once()
     assert trigger.call_args.args[0] == event_type
-    assert entity.name == "Entredörr access"
+    assert entity.translation_placeholders == {"door": "Entredörr"}
 
 
 def test_access_granted_tells_home_assistant_apart() -> None:
@@ -251,7 +254,7 @@ def test_door_alarm_follows_forced_and_left_open_until_restored() -> None:
     sensor = SpcEdpDoorAlarmBinarySensor(_hub(doors={3: _door("0")}), 3)
     sensor.async_write_ha_state = MagicMock()
     assert sensor.is_on is False
-    assert sensor.name == "Entredörr alarm"
+    assert sensor.translation_placeholders == {"door": "Entredörr"}
     sensor._handle_door_event(_event("DN", "3", "Entredörr"))
     assert sensor.is_on is True
     assert sensor.extra_state_attributes == {"condition": "left_open"}

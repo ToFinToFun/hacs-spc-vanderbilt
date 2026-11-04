@@ -30,6 +30,18 @@ def hub_device_info(hub: SpcEdpHub) -> DeviceInfo:
     return device_info
 
 
+def zone_label(hub: SpcEdpHub, zone_id: int) -> str:
+    """The zone's name in the panel, for naming entities derived from it."""
+    zone = hub.panel.zones.get(zone_id) if hub.panel else None
+    return zone.name if zone and zone.name else f"Zone {zone_id}"
+
+
+def door_label(hub: SpcEdpHub, door_id: int) -> str:
+    """The door's name in the panel (its door-position zone)."""
+    door = hub.panel.doors.get(door_id) if hub.panel else None
+    return door.name if door and door.name else f"Door {door_id}"
+
+
 class SpcEdpEntity(Entity):
     """Base entity: ties availability to the hub's live connection state."""
 
@@ -51,6 +63,14 @@ class SpcEdpEntity(Entity):
         if not self.available or not self._hub.connected or panel is None:
             raise HomeAssistantError("The SPC panel is unavailable")
         return panel
+
+    async def _async_command_user(self) -> str | None:
+        """The Home Assistant user behind the current action; None for automations."""
+        context = self._context
+        if context is None or context.user_id is None:
+            return None
+        user = await self.hass.auth.async_get_user(context.user_id)
+        return user.name if user is not None else None
 
     @property
     def device_info(self) -> DeviceInfo:

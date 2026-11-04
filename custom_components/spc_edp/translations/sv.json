@@ -22,6 +22,9 @@
               "remote": "Fjärr (EDP)"
             },
             "name": "Källa"
+          },
+          "lock_output": {
+            "name": "Låsutgång"
           }
         }
       }
@@ -32,7 +35,14 @@
           "locked": "Låst",
           "normal": "Normal",
           "unlocked": "Upplåst"
-        }
+        },
+        "name": "{door} läge"
+      },
+      "door_lock_output": {
+        "state": {
+          "none": "Ingen"
+        },
+        "name": "{door} låsutgång"
       }
     },
     "binary_sensor": {
@@ -45,7 +55,177 @@
               "left_open": "Ej stängd"
             }
           }
+        },
+        "name": "{door} larm"
+      },
+      "zone_fault": {
+        "state_attributes": {
+          "fault": {
+            "name": "Fel",
+            "state": {
+              "short": "Kortslutning",
+              "disconnected": "Avbrott",
+              "pir_masked": "Maskerad",
+              "dc_substitution": "DC-substitution",
+              "sensor_missing": "Detektor saknas",
+              "offline": "Offline",
+              "trouble": "Fel"
+            }
+          }
+        },
+        "name": "{zone} fel"
+      },
+      "engineer_mode": {
+        "name": "Installatörsläge"
+      },
+      "mains_fault": {
+        "name": "Nätspänningsfel",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
         }
+      },
+      "battery_fault": {
+        "name": "Batterifel",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
+        }
+      },
+      "psu_fault": {
+        "name": "Nätaggregatsfel",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
+        }
+      },
+      "low_voltage": {
+        "name": "Låg spänning",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
+        }
+      },
+      "communication_fault": {
+        "name": "Kommunikationsfel",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
+        }
+      },
+      "modem_fault": {
+        "name": "Modemfel",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
+        }
+      },
+      "network_fault": {
+        "name": "Nätverksfel",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
+        }
+      },
+      "expansion_fault": {
+        "name": "Expansionsenhet fel",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
+        }
+      },
+      "expansion_tamper": {
+        "name": "Expansionsenhet sabotage",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
+        }
+      },
+      "rf_jamming": {
+        "name": "Radiostörning",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
+        }
+      },
+      "rf_tamper": {
+        "name": "RF-sabotage",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
+        }
+      },
+      "siren_fault": {
+        "name": "Sirenfel",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
+        }
+      },
+      "service_required": {
+        "name": "Service krävs",
+        "state_attributes": {
+          "active": {
+            "name": "Aktiva adresser"
+          },
+          "last_event": {
+            "name": "Senaste händelse"
+          }
+        }
+      },
+      "zone_tamper": {
+        "name": "{zone} sabotage"
+      },
+      "door_exit_button": {
+        "name": "{door} öppnaknapp"
       }
     },
     "event": {
@@ -81,6 +261,193 @@
             },
             "name": "Källa"
           }
+        },
+        "name": "{door} passage"
+      },
+      "panel_event": {
+        "name": "Händelse",
+        "state_attributes": {
+          "code": {
+            "name": "Kod"
+          },
+          "address": {
+            "name": "Adress"
+          },
+          "description": {
+            "name": "Beskrivning"
+          },
+          "panel_time": {
+            "name": "Centralens tid"
+          },
+          "user": {
+            "name": "Användare"
+          },
+          "user_id": {
+            "name": "Användar-ID"
+          },
+          "zone": {
+            "name": "Sektion"
+          },
+          "area": {
+            "name": "Område"
+          },
+          "door": {
+            "name": "Dörr"
+          },
+          "name": {
+            "name": "Namn"
+          },
+          "event_type": {
+            "state": {
+              "ar": "Nätspänningsåterställning",
+              "at": "Nätspänningsfel",
+              "au": "Okänt kort",
+              "ba": "Inbrottslarm",
+              "bb": "Inbrott förbikoppling",
+              "bc": "Inbrott annullering",
+              "bd": "Swingerfel",
+              "be": "Återställning av swingerfel",
+              "bj": "Återställning av inbrottsfel",
+              "br": "Inbrott återställning",
+              "bt": "Inbrott fel",
+              "bu": "Ingen inbrottsförbikoppling",
+              "bv": "Inbrott verifierat",
+              "bx": "Inbrott test",
+              "cd": "Tillkopplingsfel",
+              "cf": "Tvångstillkoppling",
+              "cg": "Tillkoppla område",
+              "ci": "Tillkoppling ej genomförd",
+              "ck": "Tidig tillkoppling",
+              "cl": "Tillkopplingsrapport",
+              "cp": "Automatisk tillkoppling",
+              "cq": "Fjärrtillkoppling",
+              "cs": "Tillkoppling med nyckelomkopplare",
+              "ct": "Försenad frånkoppling",
+              "cu": "Kamera online",
+              "cv": "Kamera offline",
+              "dc": "Åtkomst tillkopplad",
+              "dd": "Åtkomst nekad",
+              "df": "Dörr forcerad",
+              "dg": "Giltig passage",
+              "di": "Passage nekad passback",
+              "dn": "Dörr ej stängd",
+              "do": "Åtkomst öppen",
+              "dr": "Dörråterställning",
+              "dx": "Förfrågan för utpassering",
+              "ea": "Nödutgångslarm",
+              "ej": "Återställning av expansionssabotage",
+              "em": "Expansionsenhet saknas",
+              "en": "Återställning av saknad expansionsenhet",
+              "er": "Återställning av expansionsenhet",
+              "es": "Expansionsenhet sabotage",
+              "et": "Expansionsenhet fel",
+              "fa": "Brandlarm",
+              "fb": "Brandlarmförbikoppling",
+              "fc": "Brandlarm annullering",
+              "fj": "Återställning av brandlarmfel",
+              "fr": "Brandlarm återställning",
+              "ft": "Brandlarmfel",
+              "fu": "Ingen förbikoppling av brandlarm",
+              "ha": "Överfallslarm",
+              "hb": "Överfallslarm förbikoppling",
+              "hj": "Överfallslarm problem återställning",
+              "hr": "Överfallslarm återställning",
+              "ht": "Överfallslarm problem",
+              "hu": "Överfallslarm ingen förbikoppling",
+              "hv": "Verifierat överfall",
+              "ja": "Manipulering av användarkod",
+              "jp": "Användare åtkommer",
+              "jt": "Tid ändrad",
+              "jv": "Ändring av användarkod",
+              "kg": "Manöverpaneler olåst",
+              "lb": "Lokal programmering",
+              "lr": "Modemåterställning",
+              "lt": "Modemproblem",
+              "lx": "Lokal programmering avslutad",
+              "ma": "Medicinskt larm",
+              "mb": "Medicinskt larm förbikoppling",
+              "mj": "Återställning av medicinskt larmfel",
+              "mr": "Medicinskt larm återställning",
+              "mt": "Medicinskt larm problem",
+              "mu": "Ingen medicinsk larmförbikoppling",
+              "nb": "XBUS-avisering stängd",
+              "nl": "Perimeter tillkopplat",
+              "no": "XBUS-avisering återöppnad",
+              "nr": "Nätverksförbindelse återställd",
+              "nt": "Nätverksförbindelse fel",
+              "oa": "Automatisk frånkoppling",
+              "og": "Frånkoppling område",
+              "ok": "Tidig frånkoppling",
+              "op": "Frånkopplingsrapport",
+              "oq": "Fjärrstyrd frånkoppling",
+              "or": "Inaktivera från larm",
+              "os": "Frånkoppling med nyckelomkopplare",
+              "ot": "Sen tillkoppling",
+              "pa": "Bråklarm",
+              "pb": "Bråklarm förbikoppling",
+              "pj": "Återställning av bråklarm fel",
+              "pr": "Bråklarm återställning",
+              "pt": "Bråklarm problem",
+              "pu": "Ingen bråklarm förbikoppling",
+              "rc": "Relä stängning",
+              "rg": "Läsare olåst",
+              "rl": "Läsare spärrad",
+              "rn": "Fjärråterställning",
+              "ro": "Relä öppet",
+              "rp": "Automatiskt test",
+              "rr": "Uppstart",
+              "rs": "Fjärrprogram lyckades",
+              "rt": "Dataförlust",
+              "rx": "Manuellt test",
+              "sd": "Avisering stängd",
+              "so": "Avisering återöppnad",
+              "ta": "Sabotage",
+              "tb": "Sabotage förbikoppling",
+              "tc": "Gångtest slut",
+              "tp": "Sektion som gåtts",
+              "tr": "Sabotage återställning",
+              "tu": "Ingen sabotage förbikoppling",
+              "tx": "Testanrop",
+              "ua": "Ospecificerat larm",
+              "ub": "Ospecificerad förbikoppling",
+              "uj": "Återställning av ospecificerat fel",
+              "ur": "Ospecificerad återställning",
+              "ut": "Ospecificerat fel",
+              "uu": "Ospecificerad ingen förbikoppling",
+              "ww": "Spärrad",
+              "xd": "Låg spänning",
+              "xg": "Återställning av låg spänning",
+              "xh": "Radiostörning återställd",
+              "xj": "RF sabotageåterställning",
+              "xk": "Djupladdning",
+              "xq": "RF störningsfel",
+              "xr": "Sektion lågt batteri återställning",
+              "xs": "RF sabotage",
+              "xt": "Sektion låg batt",
+              "ya": "Sirenfel",
+              "yc": "Kommunikationsfel",
+              "yf": "Checksum-fel",
+              "yh": "Siren återställd",
+              "yk": "Kommunikation återställd",
+              "ym": "Batteri saknas",
+              "yp": "Nätaggregatsfel",
+              "yq": "Återställning av nätaggregat",
+              "yr": "Batteriåterställning",
+              "ys": "Kommunikationsproblem",
+              "yt": "Batteriproblem",
+              "yw": "Återställning av övervakning",
+              "yx": "Service krävs",
+              "yz": "Service klart",
+              "zc": "Sektion stängd",
+              "zd": "Sektion frånk.",
+              "zg": "Användare åtkommer stopp",
+              "zk": "Gångtest start",
+              "zm": "Sektion maskerad",
+              "zo": "Sektion öppen",
+              "zx": "Sektion kort",
+              "unknown": "Okänd händelse"
+            }
+          }
         }
       }
     },
@@ -98,8 +465,71 @@
               "remote": "Fjärr (EDP)"
             },
             "name": "Källa"
+          },
+          "last_set": {
+            "name": "Senast tillkopplad"
+          },
+          "last_set_by": {
+            "name": "Tillkopplad av"
+          },
+          "last_unset": {
+            "name": "Senast frånkopplad"
+          },
+          "last_unset_by": {
+            "name": "Frånkopplad av"
           }
         }
+      }
+    },
+    "sensor": {
+      "battery_voltage": {
+        "name": "Batterispänning"
+      },
+      "aux_voltage": {
+        "name": "Hjälpspänning"
+      },
+      "aux_current": {
+        "name": "Hjälpström"
+      },
+      "mains_frequency": {
+        "name": "Nätfrekvens"
+      },
+      "zone_status": {
+        "state": {
+          "normal": "Normal",
+          "inhibited": "Spärrad",
+          "isolated": "Isolerad",
+          "soak": "Provdrift",
+          "tamper": "Sabotage",
+          "alarm": "Larm",
+          "ok_not_recent": "OK (ej nyligen)",
+          "trouble": "Fel"
+        },
+        "name": "{zone} status"
+      },
+      "zone_input": {
+        "state": {
+          "closed": "Stängd",
+          "open": "Öppen",
+          "short": "Kortslutning",
+          "disconnected": "Avbrott",
+          "pir_masked": "Maskerad",
+          "dc_substitution": "DC-substitution",
+          "sensor_missing": "Detektor saknas",
+          "offline": "Offline"
+        },
+        "state_attributes": {
+          "logic_input": {
+            "name": "Logisk ingång"
+          },
+          "proc_state": {
+            "name": "Behandlingsstatus"
+          },
+          "alarm_state": {
+            "name": "Larmstatus"
+          }
+        },
+        "name": "{zone} ingång"
       }
     }
   }

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import datetime as dt
+
 from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity
 from homeassistant.components.alarm_control_panel.const import (
     AlarmControlPanelEntityFeature,
@@ -12,6 +14,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import dt as dt_util
 from spcedp import ArmMode, SiaEvent
 from spcedp.panel import Area
 
@@ -19,6 +22,14 @@ from .commands import async_run_command
 from .const import SIGNAL_AREA_CHANGE, SIGNAL_NEW_AREAS, SIGNAL_UPDATE_AREA
 from .entity import SpcEdpEntity
 from .hub import SpcEdpHub
+
+
+def _panel_time(when: dt.datetime | None) -> str | None:
+    """A panel clock reading (no time zone) as an ISO time in Home Assistant's zone."""
+    if when is None:
+        return None
+    return when.replace(tzinfo=dt_util.get_default_time_zone()).isoformat()
+
 
 _MODE_TO_STATE: dict[ArmMode, AlarmControlPanelState] = {
     ArmMode.UNSET: AlarmControlPanelState.DISARMED,
@@ -55,8 +66,10 @@ async def async_setup_entry(
 class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity, RestoreEntity):  # pylint: disable=abstract-method
     """Representation of one SPC alarm area.
 
-    `changed_by` names who last set or unset the area when the panel's event
-    names a user; `source` tells Home Assistant's own commands apart.
+    `changed_by` names who last set or unset the area and `source` where from;
+    Home Assistant's own commands name the Home Assistant user. The panel's
+    own record of the last set and unset (time and panel user) is shown too,
+    and credits a change whose event was missed.
     """
 
     _attr_code_arm_required = False
@@ -73,11 +86,20 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity, RestoreEnti
         self._area_id = area_id
         self._attr_unique_id = f"{hub.unique_id}-area-{area_id}"
         self._attribution: dict[str, str | None] = {"changed_by_id": None, "source": None}
+        # The panel's last set/unset time this entity has credited.
+        self._credited_change: str | None = None
 
     @property
     def extra_state_attributes(self) -> dict[str, str | None]:
-        """Who last set or unset the area, and from where."""
-        return self._attribution
+        """Who last set or unset the area and from where, and the panel's record."""
+        area = self._area
+        record: dict[str, str | None] = {
+            "last_set": _panel_time(area.last_set) if area else None,
+            "last_set_by": (area.last_set_user_name or None) if area else None,
+            "last_unset": _panel_time(area.last_unset) if area else None,
+            "last_unset_by": (area.last_unset_user_name or None) if area else None,
+        }
+        return {**self._attribution, **record}
 
     @property
     def _area(self) -> Area | None:
@@ -114,12 +136,16 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity, RestoreEnti
             self._attr_changed_by = last.attributes.get("changed_by")
             for key in self._attribution:
                 self._attribution[key] = last.attributes.get(key)
+            self._credited_change = max(
+                (last.attributes.get(key) or "" for key in ("last_set", "last_unset")),
+                default="",
+            )
         entry_id = self._hub.entry.entry_id
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
                 SIGNAL_UPDATE_AREA.format(entry_id, self._area_id),
-                self.async_write_ha_state,
+                self._handle_area_update,
             )
         )
         self.async_on_remove(
@@ -131,6 +157,32 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity, RestoreEnti
         )
 
     @callback
+    def _handle_area_update(self) -> None:
+        """Credit a set or unset the panel records, also when its event was missed."""
+        area = self._area
+        if area is not None:
+            latest = max(
+                (
+                    (when, name, user_id)
+                    for when, name, user_id in (
+                        (area.last_set, area.last_set_user_name, area.last_set_user_id),
+                        (area.last_unset, area.last_unset_user_name, area.last_unset_user_id),
+                    )
+                    if when is not None
+                ),
+                default=None,
+            )
+            if latest is not None and (stamp := _panel_time(latest[0])) != self._credited_change:
+                self._credited_change = stamp
+                user_id = latest[2] if latest[2].isdigit() and latest[2] != "0" else None
+                attribution = self._hub.commands.attribute_user(
+                    "area", self._area_id, latest[1] or None, user_id
+                )
+                self._attr_changed_by = attribution.changed_by
+                self._attribution = attribution.as_attributes()
+        self.async_write_ha_state()
+
+    @callback
     def _handle_area_change(self, event: SiaEvent) -> None:
         """Record who set or unset the area and from where."""
         attribution = self._hub.commands.attribute("area", self._area_id, event)
@@ -140,7 +192,7 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity, RestoreEnti
 
     async def _async_set_mode(self, mode: ArmMode) -> None:
         area = self._connected_panel().area(self._area_id)
-        self._hub.commands.note("area", self._area_id)
+        self._hub.commands.note("area", self._area_id, await self._async_command_user())
         command = {
             ArmMode.UNSET: area.unset,
             ArmMode.PART_A: area.set_a,

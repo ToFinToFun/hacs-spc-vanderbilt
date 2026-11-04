@@ -23,11 +23,13 @@ from .const import (
     CONF_BIND,
     CONF_ENCRYPTION_KEY,
     CONF_IDLE_TIMEOUT,
+    CONF_OUTPUT_POLL_INTERVAL,
     CONF_PORT,
     CONF_RECEIVER_ID,
     CONF_RECONNECT_GRACE,
     DEFAULT_AREA_REFRESH_INTERVAL,
     DEFAULT_IDLE_TIMEOUT,
+    DEFAULT_OUTPUT_POLL_INTERVAL,
     DEFAULT_RECONNECT_GRACE,
     DOOR_SIA_CODES,
     DUPLICATE_EVENT_MEMORY,
@@ -36,9 +38,13 @@ from .const import (
     SIGNAL_DOOR_ACCESS,
     SIGNAL_NEW_AREAS,
     SIGNAL_NEW_DOORS,
+    SIGNAL_NEW_OUTPUTS,
     SIGNAL_NEW_ZONES,
+    SIGNAL_PANEL_EVENT,
     SIGNAL_UPDATE_AREA,
     SIGNAL_UPDATE_DOOR,
+    SIGNAL_UPDATE_OUTPUT,
+    SIGNAL_UPDATE_SYSTEM,
     SIGNAL_UPDATE_ZONE,
 )
 
@@ -59,13 +65,16 @@ class SpcEdpHub:
         self.available = False
         self._server: PanelServer | None = None
         self._area_unsub: Callable[[], None] | None = None
+        self._output_unsub: Callable[[], None] | None = None
         self._grace_unsub: CALLBACK_TYPE | None = None
         self._stopping = False
         self._refresh_lock = asyncio.Lock()
         # Home Assistant's own door and area commands, to attribute their events.
         self.commands = CommandTracker()
-        # User-facing events the panel may re-send after a redial.
+        # Events the panel may re-send after a redial.
         self._recent_events: deque[tuple[str, str, str, str]] = deque(maxlen=DUPLICATE_EVENT_MEMORY)
+        # Which output, if any, reports each door's lock (set by its select).
+        self.door_lock_outputs: dict[int, int] = {}
 
         self._session: Session | None = None
 
@@ -107,6 +116,13 @@ class SpcEdpHub:
         return float(self.entry.options.get(CONF_RECONNECT_GRACE, DEFAULT_RECONNECT_GRACE))
 
     @property
+    def output_poll_interval(self) -> float:
+        """Seconds between output reads; 0 reads them only with the periodic refresh."""
+        return float(
+            self.entry.options.get(CONF_OUTPUT_POLL_INTERVAL, DEFAULT_OUTPUT_POLL_INTERVAL)
+        )
+
+    @property
     def unique_id(self) -> str:
         """Stable identity for this configured panel."""
         return self.entry.unique_id or self.entry.entry_id
@@ -134,6 +150,7 @@ class SpcEdpHub:
         """Close the listener and its connections."""
         self._stopping = True
         self._stop_area_refresh()
+        self._stop_output_poll()
         if self._server is not None:
             await self._server.__aexit__(None, None, None)
             self._server = None
@@ -149,12 +166,15 @@ class SpcEdpHub:
         try:
             self.panel = await Panel.from_session(session)
             await self._refresh_doors(self.panel)
+            await self._refresh_outputs(self.panel)
+            await self._refresh_system(self.panel)
             self._cancel_grace()
             self.connected = True
             self.available = True
             self._announce_new_entities()
             self._async_set_availability(True)
             self._start_area_refresh()
+            self._start_output_poll()
             async for event in self.panel.events():
                 await self._handle_sia_event(self.panel, event)
         except SpcError:
@@ -165,6 +185,7 @@ class SpcEdpHub:
             was_connected = self.connected
             self.connected = False
             self._stop_area_refresh()
+            self._stop_output_poll()
             if self._stopping:
                 self._async_mark_unavailable()
             elif was_connected and self.available and self.reconnect_grace > 0:
@@ -207,6 +228,9 @@ class SpcEdpHub:
         async_dispatcher_send(self.hass, SIGNAL_NEW_AREAS.format(entry_id), set(self.panel.areas))
         async_dispatcher_send(self.hass, SIGNAL_NEW_ZONES.format(entry_id), set(self.panel.zones))
         async_dispatcher_send(self.hass, SIGNAL_NEW_DOORS.format(entry_id), set(self.panel.doors))
+        async_dispatcher_send(
+            self.hass, SIGNAL_NEW_OUTPUTS.format(entry_id), set(self.panel.outputs)
+        )
 
     @staticmethod
     async def _refresh_doors(panel: Panel) -> None:
@@ -216,18 +240,34 @@ class SpcEdpHub:
         except SpcError:
             _LOGGER.debug("Door status refresh failed", exc_info=True)
 
+    @staticmethod
+    async def _refresh_outputs(panel: Panel) -> frozenset[int]:
+        """Read outputs; a failed read keeps the previous snapshot."""
+        try:
+            return await panel.refresh_outputs()
+        except SpcError:
+            _LOGGER.debug("Output status refresh failed", exc_info=True)
+            return frozenset()
+
+    @staticmethod
+    async def _refresh_system(panel: Panel) -> None:
+        """Read panel health; a failed read keeps the previous snapshot."""
+        try:
+            await panel.refresh_system()
+        except SpcError:
+            _LOGGER.debug("Panel status refresh failed", exc_info=True)
+
     async def _handle_sia_event(self, panel: Panel, event: SiaEvent) -> None:
         """Publish zone events and authoritative area-state reads."""
         _LOGGER.debug(
             "SIA event %s address=%s: %s", event.sia_code, event.address, event.description
         )
         code = event.sia_code.upper()
-        if code in DOOR_SIA_CODES or code in AREA_CHANGE_SIA_CODES:
-            key = (event.timestamp_raw, code, event.address, event.description)
-            if key in self._recent_events:
-                _LOGGER.debug("Ignoring re-sent SIA event %s at %s", code, event.timestamp_raw)
-                return
-            self._recent_events.append(key)
+        key = (event.timestamp_raw, code, event.address, event.description)
+        if key in self._recent_events:
+            _LOGGER.debug("Ignoring re-sent SIA event %s at %s", code, event.timestamp_raw)
+            return
+        self._recent_events.append(key)
         try:
             async with self._refresh_lock:
                 update = await panel.reconcile_event(event)
@@ -249,6 +289,10 @@ class SpcEdpHub:
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id))
         for door_id in update.door_ids:
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_DOOR.format(entry_id, door_id))
+        self._dispatch_outputs(update.output_ids)
+        if update.system:
+            async_dispatcher_send(self.hass, SIGNAL_UPDATE_SYSTEM.format(entry_id))
+        async_dispatcher_send(self.hass, SIGNAL_PANEL_EVENT.format(entry_id), event)
         address = event.address.strip()
         if not address.isdigit():
             return
@@ -274,6 +318,48 @@ class SpcEdpHub:
             self._area_unsub()
             self._area_unsub = None
 
+    def _start_output_poll(self) -> None:
+        self._stop_output_poll()
+        panel = self.panel
+        if self.output_poll_interval <= 0 or panel is None or not panel.outputs:
+            return
+        self._output_unsub = async_track_time_interval(
+            self.hass,
+            self._async_poll_outputs,
+            timedelta(seconds=self.output_poll_interval),
+            cancel_on_shutdown=True,
+        )
+
+    def _stop_output_poll(self) -> None:
+        if self._output_unsub is not None:
+            self._output_unsub()
+            self._output_unsub = None
+
+    async def _async_poll_outputs(self, _now: object) -> None:
+        """Follow mapping-gate outputs, which change without an event."""
+        panel = self.panel
+        if panel is None or not self.connected or self._refresh_lock.locked():
+            return
+        async with self._refresh_lock:
+            if panel is not self.panel or not self.connected:
+                return
+            changed = await self._refresh_outputs(panel)
+        self._dispatch_outputs(changed)
+
+    def _dispatch_outputs(self, output_ids: frozenset[int]) -> None:
+        if not output_ids or self.panel is None:
+            return
+        entry_id = self.entry.entry_id
+        async_dispatcher_send(
+            self.hass, SIGNAL_NEW_OUTPUTS.format(entry_id), set(self.panel.outputs)
+        )
+        for output_id in output_ids:
+            async_dispatcher_send(self.hass, SIGNAL_UPDATE_OUTPUT.format(entry_id, output_id))
+        # A door's lock state can follow an output.
+        for door_id, output_id in self.door_lock_outputs.items():
+            if output_id in output_ids:
+                async_dispatcher_send(self.hass, SIGNAL_UPDATE_DOOR.format(entry_id, door_id))
+
     async def async_refresh(self, _now: object = None) -> None:
         """Reconcile state and notify removed entities as well as current ones."""
         panel = self.panel
@@ -291,6 +377,8 @@ class SpcEdpHub:
                 await panel.refresh_areas()
                 await panel.refresh_zones()
                 await self._refresh_doors(panel)
+                output_ids = await self._refresh_outputs(panel)
+                await self._refresh_system(panel)
         except SpcError:
             _LOGGER.debug("Area/zone reconciliation refresh failed", exc_info=True)
         if panel is not self.panel or not self.connected:
@@ -303,3 +391,5 @@ class SpcEdpHub:
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id))
         for door_id in door_ids | set(panel.doors):
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_DOOR.format(entry_id, door_id))
+        self._dispatch_outputs(output_ids)
+        async_dispatcher_send(self.hass, SIGNAL_UPDATE_SYSTEM.format(entry_id))

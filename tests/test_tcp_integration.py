@@ -28,6 +28,7 @@ class SimulatedPanel:
         self.port, self.key = port, key
         self.modes = {1: "0", 2: "0"}
         self.door_mode = "0"
+        self.gate = "0"
         self.clock = 0
         self.open = False
         self.sequence = 0
@@ -77,6 +78,13 @@ class SimulatedPanel:
                         f'INPUT="{int(self.open)}" TYPE="1"/>'
                         '<ZONE ID="2" ZONE_NAME="Garage PIR" AREA="2" INPUT="0" TYPE="0"/>'
                         "</ZONE_STATUS>",
+                        b"output_status": "<OUTPUT_STATUS>"
+                        f'<OUTPUT ID="1" NAME="Front Door unlocked" STATE="{self.gate_state}"/>'
+                        "</OUTPUT_STATUS>",
+                        b"status": '<SYSINFO TIME="12331920092026" ENGMODE="0"/>'
+                        '<PSU BATT_VOLT="13.5V" AUX_VOLT="13.5V" AUX_CURR="300mA" AC_FREQ="50Hz"/>'
+                        '<SYSALERT INPUT="00000000" ALERT="00000000" INHIBIT="00000000" '
+                        'ISOLATE="00000000"/>',
                         b"door_status": "<DOOR_STATUS>"
                         f'<DOOR ID="1" ZONE="1" ZONE_NAME="Front Door" AREA="1" '
                         f'MODE="{self.door_mode}" STATUS="0" DPS_INPUT="0" DRS_INPUT="0"/>'
@@ -114,6 +122,11 @@ class SimulatedPanel:
         stamp = f"1233{self.clock % 60:02d}20092026"
         payload = f"E2[#1000|{stamp}|{code}|{address}|{description}||0]"
         self.send(2, 0, payload.encode("latin-1"))
+
+    @property
+    def gate_state(self):
+        """A mapping gate following the lock output: on while held unlocked or released."""
+        return "1" if self.gate == "1" or self.door_mode == "2" else "0"
 
     async def close(self):
         if self.writer:
@@ -153,7 +166,7 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
     try:
         await panel.connect()
         await wait_for(
-            lambda: len(er.async_entries_for_config_entry(registry, entry.entry_id)) == 10
+            lambda: len(er.async_entries_for_config_entry(registry, entry.entry_id)) == 40
         )
         entities = {
             e.unique_id: e.entity_id
@@ -164,7 +177,20 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
         sensor = entities["test-panel-zone-1"]
         lock = entities["test-panel-door-1"]
         mode = entities["test-panel-door-1-mode"]
-        assert "test-panel-door-1-alarm" in entities
+        lock_output = entities["test-panel-door-1-lock-output"]
+        gate = entities["test-panel-output-1"]
+        panel_event = entities["test-panel-panel-event"]
+        assert {
+            "test-panel-door-1-alarm",
+            "test-panel-door-1-exit-button",
+            "test-panel-zone-1-fault",
+            "test-panel-zone-1-tamper",
+            "test-panel-zone-1-status",
+            "test-panel-zone-1-input",
+            "test-panel-engineer-mode",
+            "test-panel-mains-fault",
+            "test-panel-battery-voltage",
+        } <= set(entities)
         await wait_for(
             lambda: hass.states.get(alarm) and hass.states.get(alarm).state == "disarmed"
         )
@@ -211,6 +237,23 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
         panel.open = True
         panel.event("ZO", 1)
         await wait_for(lambda: hass.states.get(sensor).state == "on")
+        assert hass.states.get(panel_event).attributes["event_type"] == "zo"
+        assert hass.states.get(panel_event).attributes["zone"] == "Front Door"
+        assert hass.states.get(mode).name == "SPC4300 Front Door mode"
+        # A mapping-gate output that follows the lock makes a momentary open visible.
+        await hass.services.async_call(
+            "select",
+            "select_option",
+            {"entity_id": lock_output, "option": "Front Door unlocked"},
+            blocking=True,
+        )
+        assert hass.states.get(lock).state == "locked"
+        panel.gate = "1"
+        await wait_for(lambda: hass.states.get(gate).state == "on")
+        await wait_for(lambda: hass.states.get(lock).state == "unlocked")
+        assert hass.states.get(lock).attributes["lock_output"] == "Front Door unlocked"
+        panel.gate = "0"
+        await wait_for(lambda: hass.states.get(lock).state == "locked")
         # The panel redials its link several times a day; within the reconnect
         # grace period entities keep their state and commands wait for the link.
         await panel.close()

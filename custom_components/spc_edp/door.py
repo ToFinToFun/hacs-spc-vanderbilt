@@ -27,10 +27,13 @@ def door_mode_option(door: Door | None) -> str | None:
     return DOOR_MODE_OPTIONS.get(mode) if mode else None
 
 
-async def async_set_door_mode(hub: SpcEdpHub, door_id: int, option: str) -> None:
+async def async_set_door_mode(
+    hub: SpcEdpHub, door_id: int, option: str, user: str | None = None
+) -> None:
     """Set a door to `locked`, `normal` or `unlocked` unless it already is.
 
-    Callers check that the panel is connected first.
+    Callers check that the panel is connected first. `user` is the Home
+    Assistant user who asked, credited when the panel reports the change.
     """
     panel = hub.panel
     if panel is None:
@@ -43,6 +46,6 @@ async def async_set_door_mode(hub: SpcEdpHub, door_id: int, option: str) -> None
         "normal": (control.set_normal, "setting this door to normal"),
         "unlocked": (control.open_permanent, "unlocking this door"),
     }[option]
-    hub.commands.note("door", door_id)
+    hub.commands.note("door", door_id, user)
     await async_run_command(command(), action)
     await hub.async_refresh()

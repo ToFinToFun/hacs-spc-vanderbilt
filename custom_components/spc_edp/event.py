@@ -1,4 +1,4 @@
-"""Event platform for Vanderbilt SPC (EDP) door access."""
+"""Event platform for Vanderbilt SPC (EDP) door access and every panel event."""
 
 from __future__ import annotations
 
@@ -7,15 +7,21 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from spcedp import Door, SiaEvent
+from homeassistant.util import dt as dt_util
+from spcedp import SIA_CODE_NAMES, Door, SiaEvent, sia_code_name
 
+from .attribution import event_user
 from .const import (
     ACCESS_DENIED_REASONS,
+    AREA_CHANGE_SIA_CODES,
     DOOR_ACCESS_EVENT_TYPES,
+    DOOR_SIA_CODES,
     SIGNAL_DOOR_ACCESS,
     SIGNAL_NEW_DOORS,
+    SIGNAL_PANEL_EVENT,
+    ZONE_EVENT_CODES,
 )
-from .entity import SpcEdpEntity
+from .entity import SpcEdpEntity, door_label
 from .hub import SpcEdpHub
 
 # Access descriptions are "<door>¦<user>¦<user id>¦<card>¦<direction>[¦<reason>]";
@@ -58,8 +64,80 @@ async def async_setup_entry(
         async_dispatcher_connect(hass, SIGNAL_NEW_DOORS.format(entry.entry_id), _add_doors)
     )
 
+    async_add_entities([SpcEdpPanelEvent(hub)])
     if hub.panel is not None:
         _add_doors(set(hub.panel.doors))
+
+
+# Event types for the panel event entity: each SIA code, lower case.
+UNKNOWN_EVENT_TYPE = "unknown"
+PANEL_EVENT_TYPES = [*sorted(code.lower() for code in SIA_CODE_NAMES), UNKNOWN_EVENT_TYPE]
+
+
+class SpcEdpPanelEvent(SpcEdpEntity, EventEntity):
+    """Every event the panel reports, as its SIA code.
+
+    Attributes carry the code, its name from Vanderbilt's SIA code table, the
+    address and raw description, the panel's time, the user it names and the
+    zone, area or door the address refers to.
+    """
+
+    _attr_event_types = PANEL_EVENT_TYPES
+    _attr_translation_key = "panel_event"
+
+    def __init__(self, hub: SpcEdpHub) -> None:
+        """Initialize the panel event entity."""
+        super().__init__(hub)
+        self._attr_unique_id = f"{hub.unique_id}-panel-event"
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to every panel event."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                SIGNAL_PANEL_EVENT.format(self._hub.entry.entry_id),
+                self._handle_event,
+            )
+        )
+
+    def _target(self, code: str, address: str) -> dict[str, str]:
+        """Name the zone, area or door an event's address refers to."""
+        panel = self._hub.panel
+        if panel is None or not address.isdigit():
+            return {}
+        number = int(address)
+        if code in ZONE_EVENT_CODES and (zone := panel.zones.get(number)):
+            return {"zone": zone.name}
+        if code in AREA_CHANGE_SIA_CODES and (area := panel.areas.get(number)):
+            return {"area": area.name}
+        if code in DOOR_SIA_CODES and (door := panel.doors.get(number)):
+            return {"door": door.name}
+        return {}
+
+    @callback
+    def _handle_event(self, event: SiaEvent) -> None:
+        code = event.sia_code.upper()
+        event_type = code.lower() if code in SIA_CODE_NAMES else UNKNOWN_EVENT_TYPE
+        address = event.address.strip()
+        user, user_id = event_user(event)
+        attributes: dict[str, str | None] = {
+            "code": code,
+            "name": sia_code_name(code),
+            "address": address or None,
+            "description": event.description or None,
+            "panel_time": (
+                event.timestamp.replace(tzinfo=dt_util.get_default_time_zone()).isoformat()
+                if event.timestamp
+                else None
+            ),
+            **self._target(code, address),
+        }
+        if user_id is not None:
+            attributes["user"] = user
+            attributes["user_id"] = user_id
+        self._trigger_event(event_type, attributes)
+        self.async_write_ha_state()
 
 
 class SpcEdpDoorAccessEvent(SpcEdpEntity, EventEntity):
@@ -73,16 +151,12 @@ class SpcEdpDoorAccessEvent(SpcEdpEntity, EventEntity):
         super().__init__(hub)
         self._door_id = door_id
         self._attr_unique_id = f"{hub.unique_id}-door-{door_id}-access"
+        self._attr_translation_placeholders = {"door": door_label(hub, door_id)}
 
     @property
     def _door(self) -> Door | None:
         panel = self._hub.panel
         return panel.doors.get(self._door_id) if panel else None
-
-    @property
-    def name(self) -> str:
-        door = self._door
-        return f"{door.name if door and door.name else f'Door {self._door_id}'} access"
 
     @property
     def available(self) -> bool:

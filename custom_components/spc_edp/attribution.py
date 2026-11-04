@@ -19,6 +19,8 @@ from .const import (
 # Door and area event descriptions start "<name>¦<user>¦<user id>¦...".
 _SEPARATOR = "¦"
 
+HOME_ASSISTANT = "Home Assistant"
+
 
 @dataclass(frozen=True, slots=True)
 class Attribution:
@@ -49,19 +51,27 @@ class CommandTracker:
     def __init__(self, window: float = COMMAND_ATTRIBUTION_WINDOW) -> None:
         """Initialize an empty tracker."""
         self._window = window
-        self._sent: dict[tuple[str, int], float] = {}
+        self._sent: dict[tuple[str, int], tuple[float, str | None]] = {}
 
-    def note(self, kind: str, target_id: int) -> None:
-        """Record that Home Assistant is about to command this door or area."""
-        self._sent[(kind, target_id)] = time.monotonic()
+    def note(self, kind: str, target_id: int, user: str | None = None) -> None:
+        """Record that Home Assistant is about to command this door or area.
+
+        `user` is the Home Assistant user who asked, if any (not an automation).
+        """
+        self._sent[(kind, target_id)] = (time.monotonic(), user)
 
     def attribute(self, kind: str, target_id: int, event: SiaEvent) -> Attribution:
         """Attribute an event to Home Assistant, a panel user or the panel itself."""
-        name, user_id = event_user(event)
+        return self.attribute_user(kind, target_id, *event_user(event))
+
+    def attribute_user(
+        self, kind: str, target_id: int, name: str | None, user_id: str | None
+    ) -> Attribution:
+        """Attribute a change the panel credits to this user (name, id)."""
         if user_id == EDP_USER_ID:
             sent = self._sent.get((kind, target_id))
-            if sent is not None and time.monotonic() - sent <= self._window:
-                return Attribution("Home Assistant", user_id, SOURCE_HOME_ASSISTANT)
+            if sent is not None and time.monotonic() - sent[0] <= self._window:
+                return Attribution(sent[1] or HOME_ASSISTANT, user_id, SOURCE_HOME_ASSISTANT)
             return Attribution(name, user_id, SOURCE_REMOTE)
         if user_id is not None:
             return Attribution(name, user_id, SOURCE_PANEL)

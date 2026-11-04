@@ -15,6 +15,7 @@ CONF_ENCRYPTION_KEY = "encryption_key"
 CONF_IDLE_TIMEOUT = "idle_timeout"
 CONF_AREA_REFRESH_INTERVAL = "area_refresh_interval"
 CONF_RECONNECT_GRACE = "reconnect_grace"
+CONF_OUTPUT_POLL_INTERVAL = "output_poll_interval"
 
 DEFAULT_BIND = "0.0.0.0"  # nosec B104 # panels initiate connections on the LAN.
 DEFAULT_PORT = 50000
@@ -27,6 +28,9 @@ DEFAULT_AREA_REFRESH_INTERVAL = 30  # seconds; reconciles event drift/fallback
 # seconds, delivering queued events after the redial. Entities keep their last
 # state for this long instead of flapping through "unavailable".
 DEFAULT_RECONNECT_GRACE = 60  # seconds; 0 marks entities unavailable at once
+# The panel sends no event when a mapping-gate output changes, and a door's
+# momentary unlock lasts a few seconds, so outputs are read this often.
+DEFAULT_OUTPUT_POLL_INTERVAL = 1  # seconds; 0 reads outputs only with the refresh
 
 MIN_PORT = 1
 MAX_PORT = 65535
@@ -43,6 +47,10 @@ SIGNAL_UPDATE_DOOR = "spc_edp_update_door_{}_{}"
 SIGNAL_NEW_DOORS = "spc_edp_new_doors_{}"
 SIGNAL_DOOR_ACCESS = "spc_edp_door_access_{}_{}"
 SIGNAL_AREA_CHANGE = "spc_edp_area_change_{}_{}"
+SIGNAL_UPDATE_OUTPUT = "spc_edp_update_output_{}_{}"
+SIGNAL_NEW_OUTPUTS = "spc_edp_new_outputs_{}"
+SIGNAL_UPDATE_SYSTEM = "spc_edp_update_system_{}"
+SIGNAL_PANEL_EVENT = "spc_edp_panel_event_{}"
 
 # SIA access-control codes forwarded to door event entities. DG, DD, DX, DF
 # and DR were observed on an SPC4300; DN, DI, RL and RG follow the SPC SIA
@@ -96,3 +104,37 @@ SOURCE_REMOTE = "remote"
 
 # Events the panel re-sends after a redial carry their original timestamp.
 DUPLICATE_EVENT_MEMORY = 128
+
+# Panel-wide conditions raised and cleared by SIA events (Vanderbilt's SIA
+# code table). Several devices can raise the same condition, so it stays on
+# until each address that raised it is restored.
+SYSTEM_CONDITIONS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
+    "mains_fault": (frozenset({"AT"}), frozenset({"AR"})),
+    "battery_fault": (frozenset({"YT", "YM"}), frozenset({"YR"})),
+    "psu_fault": (frozenset({"YP"}), frozenset({"YQ"})),
+    "low_voltage": (frozenset({"XD"}), frozenset({"XG"})),
+    "communication_fault": (frozenset({"YC", "YS"}), frozenset({"YK"})),
+    "modem_fault": (frozenset({"LT"}), frozenset({"LR"})),
+    "network_fault": (frozenset({"NT"}), frozenset({"NR"})),
+    "expansion_fault": (frozenset({"ET", "EM"}), frozenset({"ER", "EN"})),
+    "expansion_tamper": (frozenset({"ES"}), frozenset({"EJ"})),
+    "rf_jamming": (frozenset({"XQ"}), frozenset({"XH"})),
+    "rf_tamper": (frozenset({"XS"}), frozenset({"XJ"})),
+    "siren_fault": (frozenset({"YA"}), frozenset({"YH"})),
+    "service_required": (frozenset({"YX"}), frozenset({"YZ"})),
+}
+TAMPER_CONDITIONS = frozenset({"expansion_tamper", "rf_tamper"})
+
+# SIA codes whose address is a zone, for naming it on the panel event entity.
+ZONE_EVENT_CODES = frozenset(
+    {
+        "BA", "BB", "BC", "BD", "BE", "BJ", "BR", "BT", "BU", "BV", "BX",
+        "FA", "FB", "FC", "FJ", "FR", "FT", "FU",
+        "HA", "HB", "HJ", "HR", "HT", "HU", "HV",
+        "MA", "MB", "MJ", "MR", "MT", "MU",
+        "PA", "PB", "PJ", "PR", "PT", "PU",
+        "TA", "TB", "TP", "TR", "TU",
+        "UA", "UB", "UJ", "UR", "UT", "UU",
+        "XR", "XT", "ZC", "ZD", "ZM", "ZO", "ZX",
+    }
+)  # fmt: skip

@@ -52,12 +52,14 @@
         "data": {
           "idle_timeout": "Idle timeout (seconds)",
           "area_refresh_interval": "Area/zone reconciliation interval (seconds)",
-          "reconnect_grace": "Reconnect grace period (seconds)"
+          "reconnect_grace": "Reconnect grace period (seconds)",
+          "output_poll_interval": "Output poll interval (seconds)"
         },
         "data_description": {
           "idle_timeout": "Disconnect the panel if it sends nothing for this long. The panel typically polls every ~10 seconds.",
           "area_refresh_interval": "A slower full re-sync of areas/zones to correct for any drift not covered by pushed events.",
-          "reconnect_grace": "Keep the last known state this long while the panel redials its EDP link, which it does several times a day. Commands are refused until it is back. 0 marks entities unavailable immediately."
+          "reconnect_grace": "Keep the last known state this long while the panel redials its EDP link, which it does several times a day. Commands are refused until it is back. 0 marks entities unavailable immediately.",
+          "output_poll_interval": "How often to read the panel's outputs, which change without an event (mapping gates, such as one following a door's lock). 0 reads them only with the reconciliation."
         }
       }
     }
@@ -85,6 +87,9 @@
               "remote": "Remote (EDP)"
             },
             "name": "Source"
+          },
+          "lock_output": {
+            "name": "Lock output"
           }
         }
       }
@@ -95,7 +100,14 @@
           "locked": "Locked",
           "normal": "Normal",
           "unlocked": "Unlocked"
-        }
+        },
+        "name": "{door} mode"
+      },
+      "door_lock_output": {
+        "state": {
+          "none": "None"
+        },
+        "name": "{door} lock output"
       }
     },
     "binary_sensor": {
@@ -108,7 +120,177 @@
               "left_open": "Left open"
             }
           }
+        },
+        "name": "{door} alarm"
+      },
+      "zone_fault": {
+        "state_attributes": {
+          "fault": {
+            "name": "Fault",
+            "state": {
+              "short": "Short circuit",
+              "disconnected": "Disconnected",
+              "pir_masked": "Masked",
+              "dc_substitution": "DC substitution",
+              "sensor_missing": "Sensor missing",
+              "offline": "Offline",
+              "trouble": "Trouble"
+            }
+          }
+        },
+        "name": "{zone} fault"
+      },
+      "engineer_mode": {
+        "name": "Engineer mode"
+      },
+      "mains_fault": {
+        "name": "Mains fault",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
         }
+      },
+      "battery_fault": {
+        "name": "Battery fault",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
+        }
+      },
+      "psu_fault": {
+        "name": "Power supply fault",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
+        }
+      },
+      "low_voltage": {
+        "name": "Low voltage",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
+        }
+      },
+      "communication_fault": {
+        "name": "Communication fault",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
+        }
+      },
+      "modem_fault": {
+        "name": "Modem fault",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
+        }
+      },
+      "network_fault": {
+        "name": "Network link fault",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
+        }
+      },
+      "expansion_fault": {
+        "name": "Expansion fault",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
+        }
+      },
+      "expansion_tamper": {
+        "name": "Expansion tamper",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
+        }
+      },
+      "rf_jamming": {
+        "name": "RF jamming",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
+        }
+      },
+      "rf_tamper": {
+        "name": "RF tamper",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
+        }
+      },
+      "siren_fault": {
+        "name": "Siren fault",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
+        }
+      },
+      "service_required": {
+        "name": "Service required",
+        "state_attributes": {
+          "active": {
+            "name": "Active addresses"
+          },
+          "last_event": {
+            "name": "Last event"
+          }
+        }
+      },
+      "zone_tamper": {
+        "name": "{zone} tamper"
+      },
+      "door_exit_button": {
+        "name": "{door} exit button"
       }
     },
     "event": {
@@ -144,6 +326,193 @@
             },
             "name": "Source"
           }
+        },
+        "name": "{door} access"
+      },
+      "panel_event": {
+        "name": "Event",
+        "state_attributes": {
+          "code": {
+            "name": "Code"
+          },
+          "address": {
+            "name": "Address"
+          },
+          "description": {
+            "name": "Description"
+          },
+          "panel_time": {
+            "name": "Panel time"
+          },
+          "user": {
+            "name": "User"
+          },
+          "user_id": {
+            "name": "User ID"
+          },
+          "zone": {
+            "name": "Zone"
+          },
+          "area": {
+            "name": "Area"
+          },
+          "door": {
+            "name": "Door"
+          },
+          "name": {
+            "name": "Name"
+          },
+          "event_type": {
+            "state": {
+              "ar": "AC restoral",
+              "at": "AC trouble",
+              "au": "Unknown card",
+              "ba": "Burglary alarm",
+              "bb": "Burglary bypass",
+              "bc": "Burglary cancel",
+              "bd": "Swinger trouble",
+              "be": "Swinger trouble restore",
+              "bj": "Burglary trouble restore",
+              "br": "Burglary restoral",
+              "bt": "Burglary trouble",
+              "bu": "Burglary unbypass",
+              "bv": "Burglary verified",
+              "bx": "Burglary test",
+              "cd": "Closing delinquent",
+              "cf": "Forced closing",
+              "cg": "Close area",
+              "ci": "Fail to close",
+              "ck": "Early to close",
+              "cl": "Closing report",
+              "cp": "Automatic closing",
+              "cq": "Remote closing",
+              "cs": "Closing keyswitch",
+              "ct": "Late to open",
+              "cu": "Camera online",
+              "cv": "Camera offline",
+              "dc": "Access closed",
+              "dd": "Access denied",
+              "df": "Door forced",
+              "dg": "Access granted",
+              "di": "Access denied passback",
+              "dn": "Door left open",
+              "do": "Access open",
+              "dr": "Door restoral",
+              "dx": "Request to exit",
+              "ea": "Exit alarm",
+              "ej": "Expansion tamper restore",
+              "em": "Expansion missing",
+              "en": "Expansion missing restore",
+              "er": "Expansion restoral",
+              "es": "Expansion device tamper",
+              "et": "Expansion trouble",
+              "fa": "Fire alarm",
+              "fb": "Fire bypass",
+              "fc": "Fire cancel",
+              "fj": "Fire trouble restore",
+              "fr": "Fire restoral",
+              "ft": "Fire trouble",
+              "fu": "Fire unbypass",
+              "ha": "Holdup alarm",
+              "hb": "Holdup bypass",
+              "hj": "Holdup trouble restore",
+              "hr": "Holdup restoral",
+              "ht": "Holdup trouble",
+              "hu": "Holdup unbypass",
+              "hv": "Confirmed holdup",
+              "ja": "User code tamper",
+              "jp": "User accessing",
+              "jt": "Time changed",
+              "jv": "User code change",
+              "kg": "Keypad unlocked",
+              "lb": "Local programming",
+              "lr": "Modem restoral",
+              "lt": "Modem trouble",
+              "lx": "Local programming ended",
+              "ma": "Medical alarm",
+              "mb": "Medical bypass",
+              "mj": "Medical trouble restore",
+              "mr": "Medical restoral",
+              "mt": "Medical trouble",
+              "mu": "Medical unbypass",
+              "nb": "XBUS alert close",
+              "nl": "Perimeter armed",
+              "no": "XBUS alert reopen",
+              "nr": "Network link restore",
+              "nt": "Network link fail",
+              "oa": "Automatic opening",
+              "og": "Open area",
+              "ok": "Early open",
+              "op": "Opening report",
+              "oq": "Remote opening",
+              "or": "Disarm from alarm",
+              "os": "Opening keyswitch",
+              "ot": "Late to close",
+              "pa": "Panic alarm",
+              "pb": "Panic bypass",
+              "pj": "Panic trouble restore",
+              "pr": "Panic restoral",
+              "pt": "Panic trouble",
+              "pu": "Panic unbypass",
+              "rc": "Relay close",
+              "rg": "Reader unlocked",
+              "rl": "Reader locked",
+              "rn": "Remote reset",
+              "ro": "Relay open",
+              "rp": "Automatic test",
+              "rr": "Powerup",
+              "rs": "Remote program success",
+              "rt": "Data lost",
+              "rx": "Manual test",
+              "sd": "Alert close",
+              "so": "Alert reopen",
+              "ta": "Tamper",
+              "tb": "Tamper bypass",
+              "tc": "Walktest end",
+              "tp": "Zone walked",
+              "tr": "Tamper restoral",
+              "tu": "Tamper unbypass",
+              "tx": "Test call",
+              "ua": "Untyped alarm",
+              "ub": "Untyped bypass",
+              "uj": "Untyped trouble restore",
+              "ur": "Untyped restoral",
+              "ut": "Untyped trouble",
+              "uu": "Untyped unbypass",
+              "ww": "Locked out",
+              "xd": "Low voltage",
+              "xg": "Low voltage restoral",
+              "xh": "RF jam restoral",
+              "xj": "RF tamper restoral",
+              "xk": "Deep charge",
+              "xq": "RF jam fault",
+              "xr": "Zone low battery restoral",
+              "xs": "RF tamper",
+              "xt": "Zone low battery",
+              "ya": "Bell fault",
+              "yc": "Communication fail",
+              "yf": "Checksum fault",
+              "yh": "Bell restored",
+              "yk": "Communication restoral",
+              "ym": "Battery missing",
+              "yp": "PSU trouble",
+              "yq": "PSU restoral",
+              "yr": "Battery restoral",
+              "ys": "Communication trouble",
+              "yt": "Battery trouble",
+              "yw": "Watchdog reset",
+              "yx": "Service required",
+              "yz": "Service completed",
+              "zc": "Zone close",
+              "zd": "Zone disconnected",
+              "zg": "User accessing end",
+              "zk": "Walktest start",
+              "zm": "Zone masked",
+              "zo": "Zone open",
+              "zx": "Zone short",
+              "unknown": "Unknown event"
+            }
+          }
         }
       }
     },
@@ -161,8 +530,71 @@
               "remote": "Remote (EDP)"
             },
             "name": "Source"
+          },
+          "last_set": {
+            "name": "Last set"
+          },
+          "last_set_by": {
+            "name": "Last set by"
+          },
+          "last_unset": {
+            "name": "Last unset"
+          },
+          "last_unset_by": {
+            "name": "Last unset by"
           }
         }
+      }
+    },
+    "sensor": {
+      "battery_voltage": {
+        "name": "Battery voltage"
+      },
+      "aux_voltage": {
+        "name": "Auxiliary voltage"
+      },
+      "aux_current": {
+        "name": "Auxiliary current"
+      },
+      "mains_frequency": {
+        "name": "Mains frequency"
+      },
+      "zone_status": {
+        "state": {
+          "normal": "Normal",
+          "inhibited": "Inhibited",
+          "isolated": "Isolated",
+          "soak": "Soak test",
+          "tamper": "Tamper",
+          "alarm": "Alarm",
+          "ok_not_recent": "OK (not recent)",
+          "trouble": "Trouble"
+        },
+        "name": "{zone} status"
+      },
+      "zone_input": {
+        "state": {
+          "closed": "Closed",
+          "open": "Open",
+          "short": "Short circuit",
+          "disconnected": "Disconnected",
+          "pir_masked": "Masked",
+          "dc_substitution": "DC substitution",
+          "sensor_missing": "Sensor missing",
+          "offline": "Offline"
+        },
+        "state_attributes": {
+          "logic_input": {
+            "name": "Logic input"
+          },
+          "proc_state": {
+            "name": "Processing state"
+          },
+          "alarm_state": {
+            "name": "Alarm state"
+          }
+        },
+        "name": "{zone} input"
       }
     }
   }

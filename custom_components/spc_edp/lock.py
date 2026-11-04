@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
-from spcedp import Door, SiaEvent
+from spcedp import Door, Output, SiaEvent
 
 from .commands import async_run_command
 from .const import DOOR_MODE_SIA_CODES, SIGNAL_DOOR_ACCESS, SIGNAL_NEW_DOORS, SIGNAL_UPDATE_DOOR
@@ -48,9 +48,12 @@ class SpcEdpDoorLock(SpcEdpEntity, LockEntity, RestoreEntity):  # pylint: disabl
 
     The panel's locked mode (no access at all) and normal mode (access by card,
     PIN or exit button) both report `locked`; its open mode reports `unlocked`.
-    The `door_mode` attribute tells the three apart. Lock returns an unlocked
-    door to normal and leaves a locked door locked; open releases the lock for
-    the panel's momentary unlock time, which the panel does not report back.
+    The `door_mode` attribute tells the three apart. The panel does not report
+    the lock output itself; when the door's lock output select names an output
+    that follows it (such as a mapping gate), the state follows that output
+    instead, including momentary unlocks. Lock returns an unlocked door to
+    normal and leaves a locked door locked; open releases the lock for the
+    panel's momentary unlock time.
     `changed_by` names who last changed the mode and `source` where it came
     from: Home Assistant, a panel user (keypad, app, reader), another EDP
     client or the panel itself (calendar, trigger).
@@ -82,17 +85,31 @@ class SpcEdpDoorLock(SpcEdpEntity, LockEntity, RestoreEntity):  # pylint: disabl
         return super().available and self._door is not None
 
     @property
+    def _lock_output(self) -> Output | None:
+        panel = self._hub.panel
+        output_id = self._hub.door_lock_outputs.get(self._door_id)
+        return panel.outputs.get(output_id) if panel and output_id is not None else None
+
+    @property
     def is_locked(self) -> bool | None:
-        """Locked unless the panel holds the door unlocked."""
+        """Follow the lock output if one is set, else locked unless held unlocked."""
+        output = self._lock_output
+        if output is not None and output.is_on is not None:
+            return not output.is_on
         option = door_mode_option(self._door)
         return None if option is None else option != "unlocked"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        """The panel's door mode and who last changed it."""
+        """The panel's door mode, the lock output followed and who last changed the mode."""
         if self._door is None:
             return None
-        return {"door_mode": door_mode_option(self._door), **self._attribution}
+        output = self._lock_output
+        return {
+            "door_mode": door_mode_option(self._door),
+            "lock_output": output.name if output else None,
+            **self._attribution,
+        }
 
     async def async_added_to_hass(self) -> None:
         """Restore who last changed the mode and subscribe to door updates."""
@@ -131,15 +148,17 @@ class SpcEdpDoorLock(SpcEdpEntity, LockEntity, RestoreEntity):  # pylint: disabl
         """Return an unlocked door to normal; a locked door stays locked."""
         self._connected_panel()
         if door_mode_option(self._door) == "unlocked":
-            await async_set_door_mode(self._hub, self._door_id, "normal")
+            user = await self._async_command_user()
+            await async_set_door_mode(self._hub, self._door_id, "normal", user)
 
     async def async_unlock(self, **kwargs: Any) -> None:
         """Hold the door unlocked until its mode is changed again."""
         self._connected_panel()
-        await async_set_door_mode(self._hub, self._door_id, "unlocked")
+        user = await self._async_command_user()
+        await async_set_door_mode(self._hub, self._door_id, "unlocked", user)
 
     async def async_open(self, **kwargs: Any) -> None:
         """Release the lock for the panel's configured momentary unlock time."""
         control = self._connected_panel().door(self._door_id)
-        self._hub.commands.note("door", self._door_id)
+        self._hub.commands.note("door", self._door_id, await self._async_command_user())
         await async_run_command(control.open_momentary(), "opening this door")
