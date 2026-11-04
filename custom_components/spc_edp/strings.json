@@ -61,5 +61,109 @@
         }
       }
     }
+  },
+  "entity": {
+    "lock": {
+      "door": {
+        "state_attributes": {
+          "door_mode": {
+            "name": "Door mode",
+            "state": {
+              "locked": "Locked",
+              "normal": "Normal",
+              "unlocked": "Unlocked"
+            }
+          },
+          "changed_by_id": {
+            "name": "Changed by user ID"
+          },
+          "source": {
+            "state": {
+              "home_assistant": "Home Assistant",
+              "panel": "Panel user",
+              "panel_automatic": "Panel (automatic)",
+              "remote": "Remote (EDP)"
+            },
+            "name": "Source"
+          }
+        }
+      }
+    },
+    "select": {
+      "door_mode": {
+        "state": {
+          "locked": "Locked",
+          "normal": "Normal",
+          "unlocked": "Unlocked"
+        }
+      }
+    },
+    "binary_sensor": {
+      "door_alarm": {
+        "state_attributes": {
+          "condition": {
+            "name": "Condition",
+            "state": {
+              "forced_open": "Forced open",
+              "left_open": "Left open"
+            }
+          }
+        }
+      }
+    },
+    "event": {
+      "door_access": {
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "access_granted": "Access granted",
+              "access_denied": "Access denied",
+              "passback_denied": "Access denied (passback)",
+              "exit_request": "Exit request",
+              "forced_open": "Forced open",
+              "left_open": "Left open",
+              "door_restored": "Door restored",
+              "reader_locked": "Reader locked",
+              "reader_unlocked": "Reader unlocked"
+            }
+          },
+          "reason": {
+            "name": "Reason",
+            "state": {
+              "invalid_pin": "Invalid PIN",
+              "invalid_card_format": "Invalid card format",
+              "unknown": "Unknown"
+            }
+          },
+          "source": {
+            "state": {
+              "home_assistant": "Home Assistant",
+              "panel": "Panel user",
+              "panel_automatic": "Panel (automatic)",
+              "remote": "Remote (EDP)"
+            },
+            "name": "Source"
+          }
+        }
+      }
+    },
+    "alarm_control_panel": {
+      "area": {
+        "state_attributes": {
+          "changed_by_id": {
+            "name": "Changed by user ID"
+          },
+          "source": {
+            "state": {
+              "home_assistant": "Home Assistant",
+              "panel": "Panel user",
+              "panel_automatic": "Panel (automatic)",
+              "remote": "Remote (EDP)"
+            },
+            "name": "Source"
+          }
+        }
+      }
+    }
   }
 }

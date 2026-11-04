@@ -1,4 +1,4 @@
-"""Binary sensor platform for Vanderbilt SPC (EDP) zones."""
+"""Binary sensor platform for Vanderbilt SPC (EDP) zones and door alarms."""
 
 from __future__ import annotations
 
@@ -7,13 +7,23 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import STATE_ON
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from spcedp import ZoneType
+from homeassistant.helpers.restore_state import RestoreEntity
+from spcedp import Door, SiaEvent, ZoneType
 from spcedp.panel import Zone
 
-from .const import SIGNAL_NEW_ZONES, SIGNAL_UPDATE_ZONE
+from .const import (
+    DOOR_ACCESS_EVENT_TYPES,
+    DOOR_ALARM_CLEAR_CODES,
+    DOOR_ALARM_SET_CODES,
+    SIGNAL_DOOR_ACCESS,
+    SIGNAL_NEW_DOORS,
+    SIGNAL_NEW_ZONES,
+    SIGNAL_UPDATE_ZONE,
+)
 from .entity import SpcEdpEntity
 from .hub import SpcEdpHub
 
@@ -59,12 +69,26 @@ async def async_setup_entry(
         added.update(new)
         async_add_entities(SpcEdpZoneBinarySensor(hub, zone_id) for zone_id in new)
 
+    added_doors: set[int] = set()
+
+    @callback
+    def _add_doors(door_ids: set[int]) -> None:
+        new = door_ids - added_doors
+        if not new:
+            return
+        added_doors.update(new)
+        async_add_entities(SpcEdpDoorAlarmBinarySensor(hub, door_id) for door_id in new)
+
     entry.async_on_unload(
         async_dispatcher_connect(hass, SIGNAL_NEW_ZONES.format(entry.entry_id), _add_zones)
+    )
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, SIGNAL_NEW_DOORS.format(entry.entry_id), _add_doors)
     )
 
     if hub.panel is not None:
         _add_zones(set(hub.panel.zones))
+        _add_doors(set(hub.panel.doors))
 
 
 class SpcEdpZoneBinarySensor(SpcEdpEntity, BinarySensorEntity):
@@ -115,3 +139,67 @@ class SpcEdpZoneBinarySensor(SpcEdpEntity, BinarySensorEntity):
                 self.async_write_ha_state,
             )
         )
+
+
+class SpcEdpDoorAlarmBinarySensor(SpcEdpEntity, BinarySensorEntity, RestoreEntity):
+    """On while the panel reports the door forced open or left open.
+
+    Set by the DF/DN access events and cleared by DR; the panel offers no read
+    of this state, so it is restored across Home Assistant restarts.
+    """
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_translation_key = "door_alarm"
+
+    def __init__(self, hub: SpcEdpHub, door_id: int) -> None:
+        """Initialize the alarm sensor for one door."""
+        super().__init__(hub)
+        self._door_id = door_id
+        self._attr_unique_id = f"{hub.unique_id}-door-{door_id}-alarm"
+        self._attr_is_on = False
+        self._condition: str | None = None
+
+    @property
+    def _door(self) -> Door | None:
+        panel = self._hub.panel
+        return panel.doors.get(self._door_id) if panel else None
+
+    @property
+    def name(self) -> str:
+        door = self._door
+        return f"{door.name if door and door.name else f'Door {self._door_id}'} alarm"
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._door is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str | None]:
+        return {"condition": self._condition}
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the last alarm state and subscribe to door events."""
+        await super().async_added_to_hass()
+        if (last := await self.async_get_last_state()) is not None:
+            self._attr_is_on = last.state == STATE_ON
+            self._condition = last.attributes.get("condition")
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                SIGNAL_DOOR_ACCESS.format(self._hub.entry.entry_id, self._door_id),
+                self._handle_door_event,
+            )
+        )
+
+    @callback
+    def _handle_door_event(self, event: SiaEvent) -> None:
+        code = event.sia_code.upper()
+        if code in DOOR_ALARM_SET_CODES:
+            self._attr_is_on = True
+            self._condition = DOOR_ACCESS_EVENT_TYPES[code]
+        elif code in DOOR_ALARM_CLEAR_CODES:
+            self._attr_is_on = False
+            self._condition = None
+        else:
+            return
+        self.async_write_ha_state()

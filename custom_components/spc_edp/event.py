@@ -9,19 +9,34 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from spcedp import Door, SiaEvent
 
-from .const import DOOR_ACCESS_EVENT_TYPES, SIGNAL_DOOR_ACCESS, SIGNAL_NEW_DOORS
+from .const import (
+    ACCESS_DENIED_REASONS,
+    DOOR_ACCESS_EVENT_TYPES,
+    SIGNAL_DOOR_ACCESS,
+    SIGNAL_NEW_DOORS,
+)
 from .entity import SpcEdpEntity
 from .hub import SpcEdpHub
 
 # Access descriptions are "<door>¦<user>¦<user id>¦<card>¦<direction>[¦<reason>]";
-# denied attempts append the panel's numeric reason code.
-_ACCESS_FIELDS = ("door", "user", "user_id", "card", "direction", "reason")
+# the card is the user's registered card, also when they used a PIN or the app.
+# Denied attempts name no user and append the panel's numeric reason code.
+_ACCESS_FIELDS = ("door", "user", "user_id", "card", "direction", "reason_code")
 
 
 def access_attributes(event: SiaEvent) -> dict[str, str]:
-    """Split an access event description into its non-empty fields."""
+    """Split an access event description into its fields, naming the deny reason."""
     values = event.description.split("¦")
-    return {key: value for key, value in zip(_ACCESS_FIELDS, values, strict=False) if value}
+    attributes = {
+        key: value
+        for key, value in zip(_ACCESS_FIELDS, values, strict=False)
+        if value
+        and not (key == "user_id" and value == "0")
+        and not (key == "card" and value == "0")
+    }
+    if (code := attributes.get("reason_code")) is not None:
+        attributes["reason"] = ACCESS_DENIED_REASONS.get(code, "unknown")
+    return attributes
 
 
 async def async_setup_entry(
@@ -51,6 +66,7 @@ class SpcEdpDoorAccessEvent(SpcEdpEntity, EventEntity):
     """Access granted, denied and exit requests reported for one door."""
 
     _attr_event_types = sorted(set(DOOR_ACCESS_EVENT_TYPES.values()))
+    _attr_translation_key = "door_access"
 
     def __init__(self, hub: SpcEdpHub, door_id: int) -> None:
         """Initialize the access event entity for one door."""
@@ -88,5 +104,12 @@ class SpcEdpDoorAccessEvent(SpcEdpEntity, EventEntity):
         event_type = DOOR_ACCESS_EVENT_TYPES.get(event.sia_code.upper())
         if event_type is None:
             return
-        self._trigger_event(event_type, access_attributes(event))
+        attributes: dict[str, str | None] = dict(access_attributes(event))
+        if "user_id" in attributes:
+            # Granted passages name the user; tell Home Assistant's own opens apart.
+            attribution = self._hub.commands.attribute("door", self._door_id, event)
+            attributes["source"] = attribution.source
+            if attribution.changed_by:
+                attributes["user"] = attribution.changed_by
+        self._trigger_event(event_type, attributes)
         self.async_write_ha_state()

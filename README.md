@@ -80,10 +80,10 @@ TCP port and encryption key.
 ## Use
 
 One device contains a binary sensor and an isolate switch for each zone, an
-alarm entity for each area, and a lock and an access event entity for each
-access-control door. Zone and door names come from the panel; open/active
-zones report `on`. Device classes are best-effort; change them in Home
-Assistant if needed.
+alarm entity for each area, and for each access-control door a lock, a mode
+select, an access event entity and an alarm binary sensor. Zone and door names
+come from the panel; open/active zones report `on`. Device classes are
+best-effort; change them in Home Assistant if needed.
 
 | Home Assistant action/state | SPC mode |
 | --- | --- |
@@ -96,25 +96,45 @@ Use the alarm card or the standard `alarm_control_panel.alarm_arm_home`,
 `alarm_arm_night`, `alarm_arm_away` and `alarm_disarm` actions. A Home Assistant
 PIN is not required; access is controlled by Home Assistant and the panel's
 EDP permissions. Exit engineer mode at the panel if remote arming is rejected.
+Alarm entities show who last set or unset the area in `changed_by`,
+`changed_by_id` and `source` when the panel's event names a user.
 
-| Door lock action/state | SPC door mode |
-| --- | --- |
-| Lock / `locked` | Normal (access control) |
-| Unlock / `unlocked` | Open permanently |
-| Open | Open momentarily (the door's unlock time) |
+A door has three modes, shown and set by its mode select:
 
-A door the panel holds in its locked (no access) mode also reports `locked`;
-the `door_mode` attribute tells `normal`, `locked` and `open` apart.
-`changed_by` and `changed_by_id` name the user the panel reported for the last
-mode change, whether made at a keypad, in an app or from Home Assistant (EDP
-commands are attributed to the panel's remote user, typically 9998). Both are
-empty when the panel changed the mode itself, for example from a calendar.
-Locking a door that is already in normal mode, or unlocking one that is
-already open, sends nothing: the panel would reject it.
+| Mode select | SPC door mode | Lock state |
+| --- | --- | --- |
+| `locked` | Locked: no access at all, not even momentary | `locked` |
+| `normal` | Normal: locked, opened by card, PIN or exit button | `locked` |
+| `unlocked` | Open permanently: unlocked until the mode changes | `unlocked` |
+
+The lock suits dashboards, voice and automations: unlock sets `unlocked`,
+lock returns an unlocked door to `normal` and leaves a `locked` door locked,
+and open releases the lock for the door's momentary unlock time. Commands to
+the mode a door already has send nothing; the panel would reject them.
+
+The panel does not report its lock output, so a momentary release is visible
+only as an access event, not as a lock state. To see the lock itself, wire the
+lock's status contact (or a relay on its output) to a spare zone input; it
+then appears as a zone binary sensor. Whether the door stands open is its
+door-position zone.
+
+`changed_by`, `changed_by_id` and `source` on the lock name who last changed
+the mode and from where: `home_assistant` for this integration's own commands,
+`panel` for a user at a keypad, reader or the panel's app, `remote` for
+another EDP client (the panel attributes EDP commands to its remote user,
+typically 9998) and `panel_automatic` when no user is named, such as a
+calendar or trigger.
 
 The access event entity fires `access_granted`, `access_denied`,
-`exit_request`, `forced_open` and `forced_open_restored` with the user, user
-ID, card, direction and, for denials, the panel's reason code it reports.
+`passback_denied`, `exit_request`, `forced_open`, `left_open`,
+`door_restored`, `reader_locked` and `reader_unlocked`. Attributes carry the
+user, user ID, the user's registered card, the direction and the `source`;
+denials carry the panel's `reason_code` and a `reason` (`invalid_pin`,
+`invalid_card_format` or `unknown`). The door alarm binary sensor is on while
+the door is forced or left open and clears on the panel's door restore.
+
+The panel re-sends events after it redials; re-sent door and area events are
+recognised by their panel timestamp and ignored.
 
 Isolate switches are configuration entities: turning one on isolates the
 zone, and turning it off restores it from isolation or inhibit, whichever the

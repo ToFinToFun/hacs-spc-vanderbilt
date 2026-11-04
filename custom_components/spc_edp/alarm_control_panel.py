@@ -11,11 +11,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from spcedp import ArmMode
+from homeassistant.helpers.restore_state import RestoreEntity
+from spcedp import ArmMode, SiaEvent
 from spcedp.panel import Area
 
 from .commands import async_run_command
-from .const import SIGNAL_NEW_AREAS, SIGNAL_UPDATE_AREA
+from .const import SIGNAL_AREA_CHANGE, SIGNAL_NEW_AREAS, SIGNAL_UPDATE_AREA
 from .entity import SpcEdpEntity
 from .hub import SpcEdpHub
 
@@ -51,10 +52,15 @@ async def async_setup_entry(
 
 
 # Home Assistant supports async overrides and optional methods on this base class.
-class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity):  # pylint: disable=abstract-method
-    """Representation of one SPC alarm area."""
+class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity, RestoreEntity):  # pylint: disable=abstract-method
+    """Representation of one SPC alarm area.
+
+    `changed_by` names who last set or unset the area when the panel's event
+    names a user; `source` tells Home Assistant's own commands apart.
+    """
 
     _attr_code_arm_required = False
+    _attr_translation_key = "area"
     _attr_supported_features = (
         AlarmControlPanelEntityFeature.ARM_HOME
         | AlarmControlPanelEntityFeature.ARM_AWAY
@@ -66,6 +72,12 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity):  # pylint:
         super().__init__(hub)
         self._area_id = area_id
         self._attr_unique_id = f"{hub.unique_id}-area-{area_id}"
+        self._attribution: dict[str, str | None] = {"changed_by_id": None, "source": None}
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str | None]:
+        """Who last set or unset the area, and from where."""
+        return self._attribution
 
     @property
     def _area(self) -> Area | None:
@@ -96,18 +108,39 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity):  # pylint:
         return _MODE_TO_STATE.get(mode)
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to area-specific + availability updates."""
+        """Restore who last changed the area and subscribe to area updates."""
         await super().async_added_to_hass()
+        if (last := await self.async_get_last_state()) is not None:
+            self._attr_changed_by = last.attributes.get("changed_by")
+            for key in self._attribution:
+                self._attribution[key] = last.attributes.get(key)
+        entry_id = self._hub.entry.entry_id
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
-                SIGNAL_UPDATE_AREA.format(self._hub.entry.entry_id, self._area_id),
+                SIGNAL_UPDATE_AREA.format(entry_id, self._area_id),
                 self.async_write_ha_state,
             )
         )
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                SIGNAL_AREA_CHANGE.format(entry_id, self._area_id),
+                self._handle_area_change,
+            )
+        )
+
+    @callback
+    def _handle_area_change(self, event: SiaEvent) -> None:
+        """Record who set or unset the area and from where."""
+        attribution = self._hub.commands.attribute("area", self._area_id, event)
+        self._attr_changed_by = attribution.changed_by
+        self._attribution = attribution.as_attributes()
+        self.async_write_ha_state()
 
     async def _async_set_mode(self, mode: ArmMode) -> None:
         area = self._connected_panel().area(self._area_id)
+        self._hub.commands.note("area", self._area_id)
         command = {
             ArmMode.UNSET: area.unset,
             ArmMode.PART_A: area.set_a,

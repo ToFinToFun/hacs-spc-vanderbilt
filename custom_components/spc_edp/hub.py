@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import deque
 from collections.abc import Callable
 from datetime import timedelta
 from typing import cast
@@ -15,7 +16,9 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from spcedp import Panel, PanelServer, Session, SiaEvent, SpcError
 
+from .attribution import CommandTracker
 from .const import (
+    AREA_CHANGE_SIA_CODES,
     CONF_AREA_REFRESH_INTERVAL,
     CONF_BIND,
     CONF_ENCRYPTION_KEY,
@@ -27,6 +30,8 @@ from .const import (
     DEFAULT_IDLE_TIMEOUT,
     DEFAULT_RECONNECT_GRACE,
     DOOR_SIA_CODES,
+    DUPLICATE_EVENT_MEMORY,
+    SIGNAL_AREA_CHANGE,
     SIGNAL_AVAILABILITY,
     SIGNAL_DOOR_ACCESS,
     SIGNAL_NEW_AREAS,
@@ -57,6 +62,10 @@ class SpcEdpHub:
         self._grace_unsub: CALLBACK_TYPE | None = None
         self._stopping = False
         self._refresh_lock = asyncio.Lock()
+        # Home Assistant's own door and area commands, to attribute their events.
+        self.commands = CommandTracker()
+        # User-facing events the panel may re-send after a redial.
+        self._recent_events: deque[tuple[str, str, str, str]] = deque(maxlen=DUPLICATE_EVENT_MEMORY)
 
         self._session: Session | None = None
 
@@ -212,6 +221,13 @@ class SpcEdpHub:
         _LOGGER.debug(
             "SIA event %s address=%s: %s", event.sia_code, event.address, event.description
         )
+        code = event.sia_code.upper()
+        if code in DOOR_SIA_CODES or code in AREA_CHANGE_SIA_CODES:
+            key = (event.timestamp_raw, code, event.address, event.description)
+            if key in self._recent_events:
+                _LOGGER.debug("Ignoring re-sent SIA event %s at %s", code, event.timestamp_raw)
+                return
+            self._recent_events.append(key)
         try:
             async with self._refresh_lock:
                 update = await panel.reconcile_event(event)
@@ -234,9 +250,15 @@ class SpcEdpHub:
         for door_id in update.door_ids:
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_DOOR.format(entry_id, door_id))
         address = event.address.strip()
-        if event.sia_code.upper() in DOOR_SIA_CODES and address.isdigit():
+        if not address.isdigit():
+            return
+        if code in DOOR_SIA_CODES:
             async_dispatcher_send(
                 self.hass, SIGNAL_DOOR_ACCESS.format(entry_id, int(address)), event
+            )
+        elif code in AREA_CHANGE_SIA_CODES:
+            async_dispatcher_send(
+                self.hass, SIGNAL_AREA_CHANGE.format(entry_id, int(address)), event
             )
 
     def _start_area_refresh(self) -> None:

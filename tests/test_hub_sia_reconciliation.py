@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 from spcedp.events import SiaEvent
 from spcedp.panel import EventStateUpdate
 
-from custom_components.spc_edp.const import SIGNAL_UPDATE_AREA
+from custom_components.spc_edp.const import SIGNAL_AREA_CHANGE, SIGNAL_UPDATE_AREA
 from custom_components.spc_edp.hub import SpcEdpHub
 
 
@@ -37,4 +37,7 @@ async def test_area_event_is_reconciled_before_entity_dispatch(hass) -> None:
         await hub._handle_sia_event(panel, event)
 
     panel.reconcile_event.assert_awaited_once_with(event)
-    dispatcher_send.assert_called_once_with(hass, SIGNAL_UPDATE_AREA.format("test-entry", 1))
+    assert dispatcher_send.call_args_list == [
+        call(hass, SIGNAL_UPDATE_AREA.format("test-entry", 1)),
+        call(hass, SIGNAL_AREA_CHANGE.format("test-entry", 1), event),
+    ]

@@ -1,0 +1,106 @@
+{
+  "entity": {
+    "lock": {
+      "door": {
+        "state_attributes": {
+          "door_mode": {
+            "name": "Dörrläge",
+            "state": {
+              "locked": "Låst",
+              "normal": "Normal",
+              "unlocked": "Upplåst"
+            }
+          },
+          "changed_by_id": {
+            "name": "Ändrad av användar-ID"
+          },
+          "source": {
+            "state": {
+              "home_assistant": "Home Assistant",
+              "panel": "Användare i SPC",
+              "panel_automatic": "SPC (automatiskt)",
+              "remote": "Fjärr (EDP)"
+            },
+            "name": "Källa"
+          }
+        }
+      }
+    },
+    "select": {
+      "door_mode": {
+        "state": {
+          "locked": "Låst",
+          "normal": "Normal",
+          "unlocked": "Upplåst"
+        }
+      }
+    },
+    "binary_sensor": {
+      "door_alarm": {
+        "state_attributes": {
+          "condition": {
+            "name": "Orsak",
+            "state": {
+              "forced_open": "Forcerad",
+              "left_open": "Ej stängd"
+            }
+          }
+        }
+      }
+    },
+    "event": {
+      "door_access": {
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "access_granted": "Passage beviljad",
+              "access_denied": "Passage nekad",
+              "passback_denied": "Passage nekad (passback)",
+              "exit_request": "Öppnaknapp",
+              "forced_open": "Forcerad",
+              "left_open": "Ej stängd",
+              "door_restored": "Dörr återställd",
+              "reader_locked": "Läsare spärrad",
+              "reader_unlocked": "Läsare olåst"
+            }
+          },
+          "reason": {
+            "name": "Skäl",
+            "state": {
+              "invalid_pin": "Ogiltig PIN-kod",
+              "invalid_card_format": "Ogiltigt kortformat",
+              "unknown": "Okänt"
+            }
+          },
+          "source": {
+            "state": {
+              "home_assistant": "Home Assistant",
+              "panel": "Användare i SPC",
+              "panel_automatic": "SPC (automatiskt)",
+              "remote": "Fjärr (EDP)"
+            },
+            "name": "Källa"
+          }
+        }
+      }
+    },
+    "alarm_control_panel": {
+      "area": {
+        "state_attributes": {
+          "changed_by_id": {
+            "name": "Ändrad av användar-ID"
+          },
+          "source": {
+            "state": {
+              "home_assistant": "Home Assistant",
+              "panel": "Användare i SPC",
+              "panel_automatic": "SPC (automatiskt)",
+              "remote": "Fjärr (EDP)"
+            },
+            "name": "Källa"
+          }
+        }
+      }
+    }
+  }
+}

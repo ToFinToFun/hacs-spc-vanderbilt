@@ -14,6 +14,12 @@ from custom_components.spc_edp.const import DOMAIN
 
 pytestmark = pytest.mark.usefixtures("enable_custom_integrations", "socket_enabled")
 
+DOOR_MODES = {
+    BinaryOp.DOOR_SET_NORMAL: "0",
+    BinaryOp.DOOR_LOCK: "1",
+    BinaryOp.DOOR_OPEN_PERMANENT: "2",
+}
+
 
 class SimulatedPanel:
     """Two areas, two sensors and one door, with the event bursts observed on real hardware."""
@@ -22,6 +28,7 @@ class SimulatedPanel:
         self.port, self.key = port, key
         self.modes = {1: "0", 2: "0"}
         self.door_mode = "0"
+        self.clock = 0
         self.open = False
         self.sequence = 0
         self.writer = None
@@ -81,11 +88,12 @@ class SimulatedPanel:
                         b"\x01<COMMAND_REPLY>" + rows[command].encode() + b"</COMMAND_REPLY>",
                         frame.sequence,
                     )
-                elif frame.payload[0] in (BinaryOp.DOOR_SET_NORMAL, BinaryOp.DOOR_OPEN_PERMANENT):
+                elif frame.payload[0] in DOOR_MODES:
                     opcode, door, _ = frame.payload
-                    self.door_mode = "0" if opcode == BinaryOp.DOOR_SET_NORMAL else "2"
+                    self.door_mode = DOOR_MODES[opcode]
                     self.send(4, 2, b"\xf0", frame.sequence)
-                    self.event("DO", door, "Front Door¦admin¦9998¦0")
+                    code = "DC" if opcode == BinaryOp.DOOR_LOCK else "DO"
+                    self.event(code, door, "Front Door¦admin¦9998¦0")
                 else:
                     opcode, area, _ = frame.payload
                     self.modes[area] = {
@@ -95,12 +103,16 @@ class SimulatedPanel:
                         BinaryOp.AREA_SET: "3",
                     }[opcode]
                     self.send(4, 2, b"\xf0", frame.sequence)
-                    self.event("OG" if opcode == BinaryOp.AREA_UNSET else "NL", area)
+                    code = "OG" if opcode == BinaryOp.AREA_UNSET else "NL"
+                    self.event(code, area, f"Area {area}¦Remote Engineer¦9998")
                     await asyncio.sleep(0.01)
                     self.event("OQ", 9998)
 
     def event(self, code, address, description="Test"):
-        payload = f"E2[#1000|12331920092026|{code}|{address}|{description}||0]"
+        # A distinct panel timestamp per event, as on hardware a second apart.
+        self.clock += 1
+        stamp = f"1233{self.clock % 60:02d}20092026"
+        payload = f"E2[#1000|{stamp}|{code}|{address}|{description}||0]"
         self.send(2, 0, payload.encode("latin-1"))
 
     async def close(self):
@@ -141,7 +153,7 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
     try:
         await panel.connect()
         await wait_for(
-            lambda: len(er.async_entries_for_config_entry(registry, entry.entry_id)) == 8
+            lambda: len(er.async_entries_for_config_entry(registry, entry.entry_id)) == 10
         )
         entities = {
             e.unique_id: e.entity_id
@@ -151,6 +163,8 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
         other = entities["test-panel-area-2"]
         sensor = entities["test-panel-zone-1"]
         lock = entities["test-panel-door-1"]
+        mode = entities["test-panel-door-1-mode"]
+        assert "test-panel-door-1-alarm" in entities
         await wait_for(
             lambda: hass.states.get(alarm) and hass.states.get(alarm).state == "disarmed"
         )
@@ -169,13 +183,31 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
             )
             assert hass.states.get(alarm).state == expected
             assert hass.states.get(other).state == "disarmed"
+        await wait_for(
+            lambda: hass.states.get(alarm).attributes.get("changed_by") == "Home Assistant"
+        )
+        assert hass.states.get(alarm).attributes["source"] == "home_assistant"
         assert hass.states.get(lock).state == "locked"
         await hass.services.async_call("lock", "unlock", {"entity_id": lock}, blocking=True)
         assert hass.states.get(lock).state == "unlocked"
-        await wait_for(lambda: hass.states.get(lock).attributes.get("changed_by") == "admin")
+        assert hass.states.get(mode).state == "unlocked"
+        await wait_for(
+            lambda: hass.states.get(lock).attributes.get("changed_by") == "Home Assistant"
+        )
         assert hass.states.get(lock).attributes["changed_by_id"] == "9998"
+        assert hass.states.get(lock).attributes["source"] == "home_assistant"
         await hass.services.async_call("lock", "lock", {"entity_id": lock}, blocking=True)
         assert hass.states.get(lock).state == "locked"
+        assert hass.states.get(mode).state == "normal"
+        await hass.services.async_call(
+            "select", "select_option", {"entity_id": mode, "option": "locked"}, blocking=True
+        )
+        assert hass.states.get(mode).state == "locked"
+        assert hass.states.get(lock).state == "locked"
+        await hass.services.async_call(
+            "select", "select_option", {"entity_id": mode, "option": "normal"}, blocking=True
+        )
+        assert hass.states.get(mode).state == "normal"
         panel.open = True
         panel.event("ZO", 1)
         await wait_for(lambda: hass.states.get(sensor).state == "on")
