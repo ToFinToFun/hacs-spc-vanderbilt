@@ -51,11 +51,13 @@
         "title": "Vanderbilt SPC (EDP) options",
         "data": {
           "idle_timeout": "Idle timeout (seconds)",
-          "area_refresh_interval": "Area/zone reconciliation interval (seconds)"
+          "area_refresh_interval": "Area/zone reconciliation interval (seconds)",
+          "reconnect_grace": "Reconnect grace period (seconds)"
         },
         "data_description": {
           "idle_timeout": "Disconnect the panel if it sends nothing for this long. The panel typically polls every ~10 seconds.",
-          "area_refresh_interval": "A slower full re-sync of areas/zones to correct for any drift not covered by pushed events."
+          "area_refresh_interval": "A slower full re-sync of areas/zones to correct for any drift not covered by pushed events.",
+          "reconnect_grace": "Keep the last known state this long while the panel redials its EDP link, which it does several times a day. Commands are refused until it is back. 0 marks entities unavailable immediately."
         }
       }
     }

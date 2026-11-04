@@ -14,6 +14,7 @@ CONF_ENCRYPTION_KEY = "encryption_key"
 # --- Config entry option keys (tunable after setup) -------------------------
 CONF_IDLE_TIMEOUT = "idle_timeout"
 CONF_AREA_REFRESH_INTERVAL = "area_refresh_interval"
+CONF_RECONNECT_GRACE = "reconnect_grace"
 
 DEFAULT_BIND = "0.0.0.0"  # nosec B104 # panels initiate connections on the LAN.
 DEFAULT_PORT = 50000
@@ -22,6 +23,10 @@ DEFAULT_IDLE_TIMEOUT = 120
 # zone refresh is the lowest interval exposed by the options flow and keeps
 # physical state current even when the panel does not publish SIA ZO/ZC events.
 DEFAULT_AREA_REFRESH_INTERVAL = 30  # seconds; reconciles event drift/fallback
+# Panels drop and redial the EDP link several times a day and are back within
+# seconds, delivering queued events after the redial. Entities keep their last
+# state for this long instead of flapping through "unavailable".
+DEFAULT_RECONNECT_GRACE = 60  # seconds; 0 marks entities unavailable at once
 
 MIN_PORT = 1
 MAX_PORT = 65535
@@ -43,4 +48,14 @@ DOOR_ACCESS_EVENT_TYPES: dict[str, str] = {
     "DG": "access_granted",
     "DD": "access_denied",
     "DX": "exit_request",
+    "DF": "forced_open",
+    "DR": "forced_open_restored",
 }
+
+# SIA codes that follow a door mode change. A permanent open and a return to
+# normal both report DO, so the mode itself is read from DOOR_STATUS; the
+# description names who made the change ("<door>¦<user>¦<user id>¦...").
+DOOR_MODE_SIA_CODES = frozenset({"DC", "DO"})
+
+# Every SIA code dispatched to a door's entities.
+DOOR_SIA_CODES = frozenset(DOOR_ACCESS_EVENT_TYPES) | DOOR_MODE_SIA_CODES

@@ -104,22 +104,36 @@ EDP permissions. Exit engineer mode at the panel if remote arming is rejected.
 | Open | Open momentarily (the door's unlock time) |
 
 A door the panel holds in its locked (no access) mode also reports `locked`;
-the `door_mode` attribute tells `normal`, `locked` and `open` apart. The
-access event entity fires `access_granted`, `access_denied` and
-`exit_request` with the user, user ID, card and direction the panel reports.
+the `door_mode` attribute tells `normal`, `locked` and `open` apart.
+`changed_by` and `changed_by_id` name the user the panel reported for the last
+mode change, whether made at a keypad, in an app or from Home Assistant (EDP
+commands are attributed to the panel's remote user, typically 9998). Both are
+empty when the panel changed the mode itself, for example from a calendar.
+Locking a door that is already in normal mode, or unlocking one that is
+already open, sends nothing: the panel would reject it.
+
+The access event entity fires `access_granted`, `access_denied`,
+`exit_request`, `forced_open` and `forced_open_restored` with the user, user
+ID, card, direction and, for denials, the panel's reason code it reports.
 
 Isolate switches are configuration entities: turning one on isolates the
 zone, and turning it off restores it from isolation or inhibit, whichever the
-panel reports. A zone inhibited at a keypad also shows as on.
+panel reports. A zone inhibited at a keypad also shows as on. Switching to
+the state the zone is already in sends nothing.
 
 Sensors update from pushed events. Arm/disarm events trigger an immediate
 area-state read because their payload cannot reliably identify the arm mode.
 A full area/zone/door read runs every **30 seconds** to cover missed events and
 panels that do not stream zone changes. Under **Configure**, adjust this
-interval and the idle timeout (default **120 seconds**). Use **Reconfigure**
-to change receiver settings.
+interval, the idle timeout (default **120 seconds**) and the reconnect grace
+period. Use **Reconfigure** to change receiver settings.
 
-Entities become unavailable on disconnect or removal from the panel;
+Panels drop and redial their EDP link several times a day and are back within
+seconds; events raised meanwhile are delivered after the redial. Entities keep
+their last state for the reconnect grace period (default **60 seconds**, `0`
+disables it) and only then become unavailable, so automations do not see a
+flap through `unavailable`. Commands are refused until the link is back.
+Entities removed from the panel become unavailable at the next read;
 new zones, areas and doors appear automatically. Alarm `triggered` is inferred
 from events received during the connection and clears on a confirmed disarm.
 It is not a complete panel-native record of active alarms after a restart.

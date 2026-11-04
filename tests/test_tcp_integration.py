@@ -4,6 +4,7 @@ import asyncio
 import re
 
 import pytest
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from spcedp.commands import BinaryOp
@@ -84,7 +85,7 @@ class SimulatedPanel:
                     opcode, door, _ = frame.payload
                     self.door_mode = "0" if opcode == BinaryOp.DOOR_SET_NORMAL else "2"
                     self.send(4, 2, b"\xf0", frame.sequence)
-                    self.event("DO", door)
+                    self.event("DO", door, "Front Door¦admin¦9998¦0")
                 else:
                     opcode, area, _ = frame.payload
                     self.modes[area] = {
@@ -98,8 +99,9 @@ class SimulatedPanel:
                     await asyncio.sleep(0.01)
                     self.event("OQ", 9998)
 
-    def event(self, code, address):
-        self.send(2, 0, f"E2[#1000|12331920092026|{code}|{address}|Test||0]".encode())
+    def event(self, code, address, description="Test"):
+        payload = f"E2[#1000|12331920092026|{code}|{address}|{description}||0]"
+        self.send(2, 0, payload.encode("latin-1"))
 
     async def close(self):
         if self.writer:
@@ -170,22 +172,29 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
         assert hass.states.get(lock).state == "locked"
         await hass.services.async_call("lock", "unlock", {"entity_id": lock}, blocking=True)
         assert hass.states.get(lock).state == "unlocked"
+        await wait_for(lambda: hass.states.get(lock).attributes.get("changed_by") == "admin")
+        assert hass.states.get(lock).attributes["changed_by_id"] == "9998"
         await hass.services.async_call("lock", "lock", {"entity_id": lock}, blocking=True)
         assert hass.states.get(lock).state == "locked"
         panel.open = True
         panel.event("ZO", 1)
         await wait_for(lambda: hass.states.get(sensor).state == "on")
+        # The panel redials its link several times a day; within the reconnect
+        # grace period entities keep their state and commands wait for the link.
+        await panel.close()
+        await wait_for(lambda: not entry.runtime_data.connected)
+        assert hass.states.get(sensor).state == "on"
+        with pytest.raises(HomeAssistantError, match="unavailable"):
+            await hass.services.async_call("lock", "unlock", {"entity_id": lock}, blocking=True)
+        await panel.connect()
+        await wait_for(lambda: entry.runtime_data.connected)
+        await hass.services.async_call("lock", "unlock", {"entity_id": lock}, blocking=True)
+        assert hass.states.get(lock).state == "unlocked"
+        assert hass.states.get(sensor).state == "on"
         assert not any(
             e.get("new_state") and e["new_state"].state == "unavailable" for e in changes
         )
         unsub()
-        await panel.close()
-        await wait_for(
-            lambda: all(hass.states.get(e).state == "unavailable" for e in entities.values())
-        )
-        await panel.connect()
-        await wait_for(lambda: hass.states.get(alarm).state == "disarmed")
-        assert hass.states.get(sensor).state == "on"
         assert await hass.config_entries.async_reload(entry.entry_id)
         await panel.close()
         await panel.connect()

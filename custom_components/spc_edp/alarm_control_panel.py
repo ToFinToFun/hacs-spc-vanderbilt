@@ -9,7 +9,6 @@ from homeassistant.components.alarm_control_panel.const import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from spcedp import ArmMode
@@ -108,9 +107,7 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity):  # pylint:
         )
 
     async def _async_set_mode(self, mode: ArmMode) -> None:
-        if not self.available or self._hub.panel is None:
-            raise HomeAssistantError("The SPC panel is unavailable")
-        area = self._hub.panel.area(self._area_id)
+        area = self._connected_panel().area(self._area_id)
         command = {
             ArmMode.UNSET: area.unset,
             ArmMode.PART_A: area.set_a,

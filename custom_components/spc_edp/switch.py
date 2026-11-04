@@ -8,7 +8,6 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from spcedp import ZoneStatus
@@ -96,18 +95,18 @@ class SpcEdpZoneIsolateSwitch(SpcEdpEntity, SwitchEntity):  # pylint: disable=ab
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Isolate the zone until it is restored."""
-        if not self.available or self._hub.panel is None:
-            raise HomeAssistantError("The SPC panel is unavailable")
-        zone = self._hub.panel.zone(self._zone_id)
+        zone = self._connected_panel().zone(self._zone_id)
+        if self.is_on:
+            return  # the panel rejects bypassing an already bypassed zone
         await async_run_command(zone.isolate(), "isolating this zone")
         await self._hub.async_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Restore the zone from whichever bypass the panel reports."""
+        zone = self._connected_panel().zone(self._zone_id)
         current = self._zone
-        if not self.available or self._hub.panel is None or current is None:
-            raise HomeAssistantError("The SPC panel is unavailable")
-        zone = self._hub.panel.zone(self._zone_id)
+        if current is None or current.zone_status is ZoneStatus.NORMAL:
+            return  # the panel rejects restoring a zone that is not bypassed
         if current.zone_status is ZoneStatus.INHIBITED:
             await async_run_command(zone.deinhibit(), "restoring this zone")
         else:

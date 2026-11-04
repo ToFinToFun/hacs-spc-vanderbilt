@@ -7,16 +7,19 @@ from typing import Any
 from homeassistant.components.lock import LockEntity, LockEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from spcedp import Door, DoorMode
+from homeassistant.helpers.restore_state import RestoreEntity
+from spcedp import Door, DoorMode, SiaEvent
 from spcedp.panel import DoorControl
 
 from .commands import async_run_command
-from .const import SIGNAL_NEW_DOORS, SIGNAL_UPDATE_DOOR
+from .const import DOOR_MODE_SIA_CODES, SIGNAL_DOOR_ACCESS, SIGNAL_NEW_DOORS, SIGNAL_UPDATE_DOOR
 from .entity import SpcEdpEntity
+from .event import access_attributes
 from .hub import SpcEdpHub
+
+ATTR_CHANGED_BY_ID = "changed_by_id"
 
 
 async def async_setup_entry(
@@ -43,11 +46,13 @@ async def async_setup_entry(
 
 
 # Home Assistant supports async overrides and optional methods on this base class.
-class SpcEdpDoorLock(SpcEdpEntity, LockEntity):  # pylint: disable=abstract-method
+class SpcEdpDoorLock(SpcEdpEntity, LockEntity, RestoreEntity):  # pylint: disable=abstract-method
     """One SPC door.
 
     Normal (access-controlled) and locked modes keep the door locked; open mode
     keeps it unlocked. Opening releases the lock for the panel's unlock time.
+    `changed_by` names the user the panel reported for the last mode change;
+    it is empty when the panel changed the mode itself (calendar or trigger).
     """
 
     _attr_supported_features = LockEntityFeature.OPEN
@@ -57,6 +62,7 @@ class SpcEdpDoorLock(SpcEdpEntity, LockEntity):  # pylint: disable=abstract-meth
         super().__init__(hub)
         self._door_id = door_id
         self._attr_unique_id = f"{hub.unique_id}-door-{door_id}"
+        self._changed_by_id: str | None = None
 
     @property
     def _door(self) -> Door | None:
@@ -89,32 +95,66 @@ class SpcEdpDoorLock(SpcEdpEntity, LockEntity):  # pylint: disable=abstract-meth
         if door is None:
             return None
         mode = door.door_mode
-        return {"door_mode": mode.name.lower() if mode else None, "door_open": door.is_open}
+        return {
+            "door_mode": mode.name.lower() if mode else None,
+            "door_open": door.is_open,
+            ATTR_CHANGED_BY_ID: self._changed_by_id,
+        }
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to door-specific + availability updates."""
+        """Restore who last changed the mode and subscribe to door updates."""
         await super().async_added_to_hass()
+        if (last := await self.async_get_last_state()) is not None:
+            self._attr_changed_by = last.attributes.get("changed_by")
+            self._changed_by_id = last.attributes.get(ATTR_CHANGED_BY_ID)
+        entry_id = self._hub.entry.entry_id
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
-                SIGNAL_UPDATE_DOOR.format(self._hub.entry.entry_id, self._door_id),
+                SIGNAL_UPDATE_DOOR.format(entry_id, self._door_id),
                 self.async_write_ha_state,
             )
         )
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                SIGNAL_DOOR_ACCESS.format(entry_id, self._door_id),
+                self._handle_door_event,
+            )
+        )
+
+    @callback
+    def _handle_door_event(self, event: SiaEvent) -> None:
+        """Record who the panel says changed the door mode."""
+        if event.sia_code.upper() not in DOOR_MODE_SIA_CODES:
+            return
+        fields = access_attributes(event)
+        self._attr_changed_by = fields.get("user")
+        user_id = fields.get("user_id")
+        self._changed_by_id = user_id if user_id and user_id != "0" else None
+        self.async_write_ha_state()
 
     def _control(self) -> DoorControl:
-        if not self.available or self._hub.panel is None:
-            raise HomeAssistantError("The SPC panel is unavailable")
-        return self._hub.panel.door(self._door_id)
+        return self._connected_panel().door(self._door_id)
+
+    def _mode(self) -> DoorMode | None:
+        door = self._door
+        return door.door_mode if door else None
 
     async def async_lock(self, **kwargs: Any) -> None:
         """Return the door to normal, access-controlled operation."""
-        await async_run_command(self._control().set_normal(), "locking this door")
+        control = self._control()
+        if self._mode() is DoorMode.NORMAL:
+            return  # the panel rejects setting a door to its current mode
+        await async_run_command(control.set_normal(), "locking this door")
         await self._hub.async_refresh()
 
     async def async_unlock(self, **kwargs: Any) -> None:
         """Hold the door open until it is locked again."""
-        await async_run_command(self._control().open_permanent(), "unlocking this door")
+        control = self._control()
+        if self._mode() is DoorMode.OPEN:
+            return  # the panel rejects setting a door to its current mode
+        await async_run_command(control.open_permanent(), "unlocking this door")
         await self._hub.async_refresh()
 
     async def async_open(self, **kwargs: Any) -> None:

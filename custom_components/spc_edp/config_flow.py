@@ -30,10 +30,12 @@ from .const import (
     CONF_IDLE_TIMEOUT,
     CONF_PORT,
     CONF_RECEIVER_ID,
+    CONF_RECONNECT_GRACE,
     DEFAULT_AREA_REFRESH_INTERVAL,
     DEFAULT_BIND,
     DEFAULT_IDLE_TIMEOUT,
     DEFAULT_PORT,
+    DEFAULT_RECONNECT_GRACE,
     DOMAIN,
     MAX_PORT,
     MAX_RECEIVER_ID,
@@ -203,6 +205,12 @@ class SpcEdpOptionsFlow(OptionsFlow):
                     default=options.get(CONF_AREA_REFRESH_INTERVAL, DEFAULT_AREA_REFRESH_INTERVAL),
                 ): NumberSelector(
                     NumberSelectorConfig(min=30, max=7200, mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_RECONNECT_GRACE,
+                    default=options.get(CONF_RECONNECT_GRACE, DEFAULT_RECONNECT_GRACE),
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0, max=600, mode=NumberSelectorMode.BOX)
                 ),
             }
         )

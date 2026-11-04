@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from homeassistant.core import callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
+from spcedp import Panel
 
 from .const import DOMAIN, MANUFACTURER, SIGNAL_AVAILABILITY
 from .hub import SpcEdpHub
@@ -40,8 +42,15 @@ class SpcEdpEntity(Entity):
 
     @property
     def available(self) -> bool:
-        """Entities are unavailable whenever the panel is not connected."""
+        """Unavailable once the panel has been gone longer than the reconnect grace."""
         return self._hub.available
+
+    def _connected_panel(self) -> Panel:
+        """Return the live panel for a command; last-known state cannot take commands."""
+        panel = self._hub.panel
+        if not self.available or not self._hub.connected or panel is None:
+            raise HomeAssistantError("The SPC panel is unavailable")
+        return panel
 
     @property
     def device_info(self) -> DeviceInfo:
