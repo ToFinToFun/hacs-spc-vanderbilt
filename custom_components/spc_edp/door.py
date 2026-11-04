@@ -27,6 +27,17 @@ def door_mode_option(door: Door | None) -> str | None:
     return DOOR_MODE_OPTIONS.get(mode) if mode else None
 
 
+def door_status(door: Door | None) -> str | None:
+    """The door's DOOR_STATUS STATUS: `ok` for 0, else the panel's raw value.
+
+    The manual names the values OK and fault; only 0 (OK) has been observed,
+    so other values are shown as the panel sends them.
+    """
+    if door is None or not door.status:
+        return None
+    return "ok" if door.status == "0" else door.status
+
+
 async def async_set_door_mode(
     hub: SpcEdpHub, door_id: int, option: str, user: str | None = None
 ) -> None:

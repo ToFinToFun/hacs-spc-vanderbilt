@@ -556,6 +556,12 @@
           },
           "lock_output": {
             "name": "Följer utgång"
+          },
+          "door_status": {
+            "name": "Dörrstatus",
+            "state": {
+              "ok": "OK"
+            }
           }
         }
       }

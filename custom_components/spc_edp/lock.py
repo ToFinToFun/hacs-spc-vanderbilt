@@ -14,7 +14,7 @@ from spcedp import Door, Output, SiaEvent
 
 from .commands import async_run_command
 from .const import DOOR_MODE_SIA_CODES, SIGNAL_DOOR_ACCESS, SIGNAL_NEW_DOORS, SIGNAL_UPDATE_DOOR
-from .door import async_set_door_mode, door_mode_option
+from .door import async_set_door_mode, door_mode_option, door_status
 from .entity import SpcEdpEntity
 from .hub import SpcEdpHub
 
@@ -107,6 +107,7 @@ class SpcEdpDoorLock(SpcEdpEntity, LockEntity, RestoreEntity):  # pylint: disabl
         output = self._lock_output
         return {
             "door_mode": door_mode_option(self._door),
+            "door_status": door_status(self._door),
             "lock_output": output.name if output else None,
             **self._attribution,
         }

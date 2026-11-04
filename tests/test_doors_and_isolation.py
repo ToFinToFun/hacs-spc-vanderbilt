@@ -88,6 +88,7 @@ def test_lock_and_mode_select_follow_the_door_mode(
     # Whether the door stands open is its position zone, not a lock attribute.
     assert lock.extra_state_attributes == {
         "door_mode": door_mode,
+        "door_status": "ok",
         "lock_output": None,
         "changed_by_id": None,
         "source": None,

@@ -621,6 +621,12 @@
           },
           "lock_output": {
             "name": "Follows output"
+          },
+          "door_status": {
+            "name": "Door status",
+            "state": {
+              "ok": "OK"
+            }
           }
         }
       }
