@@ -1,11 +1,11 @@
-"""Zone faults and tamper, outputs, panel health, panel events and who changed an area."""
+"""Zone faults and tamper, mapping gates, panel health, panel events and who changed an area."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock
 
 import pytest
-from spcedp import SYSTEM_ALERTS, Output, SystemStatus, Zone, parse_panel_time
+from spcedp import SYSTEM_ALERTS, MappingGate, SystemStatus, Zone, parse_panel_time
 from spcedp.events import SiaEvent
 from spcedp.panel import Area
 
@@ -13,7 +13,7 @@ from custom_components.spc_edp.alarm_control_panel import SpcEdpAlarmControlPane
 from custom_components.spc_edp.attribution import CommandTracker
 from custom_components.spc_edp.binary_sensor import (
     SpcEdpEngineerModeBinarySensor,
-    SpcEdpOutputBinarySensor,
+    SpcEdpMappingGateBinarySensor,
     SpcEdpSystemAlertBinarySensor,
     SpcEdpZoneFaultBinarySensor,
     SpcEdpZoneTamperBinarySensor,
@@ -63,12 +63,12 @@ def _hub(**panel: object) -> MagicMock:
     hub.panel.zones = {}
     hub.panel.areas = {}
     hub.panel.doors = {}
-    hub.panel.outputs = {}
+    hub.panel.mapping_gates = {}
     hub.panel.system = None
     for key, value in panel.items():
         setattr(hub.panel, key, value)
     hub.commands = CommandTracker()
-    hub.door_lock_outputs = {}
+    hub.door_lock_gates = {}
     return hub
 
 
@@ -110,16 +110,18 @@ def test_zone_status_and_input_sensors() -> None:
     assert SpcEdpZoneStatusSensor(_hub(), 36).available is False
 
 
-def test_output_and_panel_health() -> None:
+def test_mapping_gate_and_panel_health() -> None:
     status = SystemStatus(
         engineer_mode="1",
         battery_voltage_raw="13.5V",
         aux_current_raw="220mA",
         ac_frequency_raw="50Hz",
     )
-    hub = _hub(outputs={3: Output(id=3, name="Entredörr upplås", state="1")}, system=status)
-    output = SpcEdpOutputBinarySensor(hub, 3)
-    assert (output.name, output.is_on) == ("Entredörr upplås", True)
+    hub = _hub(
+        mapping_gates={3: MappingGate(id=3, name="Entredörr upplås", state="1")}, system=status
+    )
+    gate = SpcEdpMappingGateBinarySensor(hub, 3)
+    assert (gate.name, gate.is_on) == ("Entredörr upplås", True)
     assert SpcEdpEngineerModeBinarySensor(hub).is_on is True
     values = {d.key: SpcEdpPanelSensor(hub, d).native_value for d in PANEL_SENSORS}
     assert values == {
@@ -231,7 +233,7 @@ def test_area_credits_the_panels_record_of_the_last_change() -> None:
 @pytest.mark.asyncio
 async def test_command_user_comes_from_the_service_context(hass) -> None:
     user = await hass.auth.async_create_user("Jerry")
-    entity = SpcEdpOutputBinarySensor(_hub(), 1)
+    entity = SpcEdpMappingGateBinarySensor(_hub(), 1)
     entity.hass = hass
     assert await entity._async_command_user() is None
     entity.async_set_context(MagicMock(user_id=user.id))

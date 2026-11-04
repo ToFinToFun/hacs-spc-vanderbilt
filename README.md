@@ -79,8 +79,8 @@ TCP port and encryption key.
 
 ## Use
 
-One device holds everything the panel reports. Zone, door, area and output
-names come from the panel; derived entities are named after their zone or
+One device holds everything the panel reports. Zone, door, area and mapping
+gate names come from the panel; derived entities are named after their zone or
 door. Other names and states use the panel's own vocabulary: its web
 interface (Status pages, access log) and Vanderbilt's manual and SIA code
 table, in English and Swedish.
@@ -89,8 +89,8 @@ table, in English and Swedish.
 | --- | --- |
 | Area | Alarm control panel |
 | Zone | Open/closed binary sensor, isolate switch, fault and tamper binary sensors, status sensor, input sensor (diagnostic) |
-| Door | Lock, door mode select, "lock follows output" select, access event, alarm and DRS binary sensors |
-| Output | Binary sensor (panel outputs and mapping-gate outputs) |
+| Door | Lock, door mode select, "lock follows mapping gate" select, access event, alarm and DRS binary sensors |
+| Mapping gate | Binary sensor (web interface: Outputs > Mapping Gate) |
 | Panel | Event entity for every panel event; engineer mode; Battery Voltage, Aux. Voltage, Aux. Current, Mains time sync. (Hz); one binary sensor per system alert |
 
 Open/active zones report `on`. Device classes are best-effort; change them in
@@ -130,11 +130,11 @@ the mode a door already has send nothing; the panel would reject them.
 
 The panel does not report a door controller's lock output, so by default a
 momentary release is visible only as an access event, and the lock entity
-shows the door mode. If the panel is programmed so that a mapping gate (or
-output) follows the door's lock, choose that output in the door's "lock
-follows output" select: the lock entity then follows it and shows it as
-`lock_output`. Whether a gate can follow the lock depends on the panel's
-programming; this integration only reads the output. Alternatively wire the
+shows the door mode. If the panel is programmed so that a mapping gate
+follows the door's lock, choose it in the door's "lock follows mapping gate"
+select: the lock entity then follows it and shows it as `lock_mapping_gate`.
+Whether a gate can follow the lock depends on the panel's programming; EDP
+can only read mapping gates, not set them. Alternatively wire the
 lock's status contact to a spare zone input. Whether the door stands open is its
 DPS (door position sensor) zone; the DRS binary sensor is the door release switch.
 
@@ -171,8 +171,8 @@ reports a fault or the Status is `trouble`; the `fault` attribute names which. T
 the zone's tamper status. Alarm, trouble, tamper and wiring events re-read
 the zones at once.
 
-Outputs change without an event, so they are read every second (the
-**output poll interval** option; `0` reads them only with the periodic
+Mapping gates change without an event, so they are read every second (the
+**mapping gate poll interval** option; `0` reads them only with the periodic
 refresh). The panel status (engineer mode, power readings, system alerts)
 is read with the periodic refresh and on power, communication, tamper and
 engineer-mode events.
@@ -197,7 +197,7 @@ area-state read because their payload cannot reliably identify the arm mode.
 A full area/zone/door read runs every **30 seconds** to cover missed events and
 panels that do not stream zone changes. Under **Configure**, adjust this
 interval, the idle timeout (default **120 seconds**), the reconnect grace
-period and the output poll interval. Use **Reconfigure** to change receiver settings.
+period and the mapping gate poll interval. Use **Reconfigure** to change receiver settings.
 
 Panels drop and redial their EDP link several times a day and are back within
 seconds; events raised meanwhile are delivered after the redial. Entities keep

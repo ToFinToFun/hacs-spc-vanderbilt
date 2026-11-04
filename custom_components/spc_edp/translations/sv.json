@@ -554,14 +554,14 @@
               "remote": "Fjärr (EDP)"
             }
           },
-          "lock_output": {
-            "name": "Följer utgång"
-          },
           "door_status": {
             "name": "Dörrstatus",
             "state": {
               "ok": "OK"
             }
+          },
+          "lock_mapping_gate": {
+            "name": "Följer mapping gate"
           }
         }
       }
@@ -575,8 +575,8 @@
           "unlocked": "Dörr olåst"
         }
       },
-      "door_lock_output": {
-        "name": "{door} lås följer utgång",
+      "door_lock_gate": {
+        "name": "{door} lås följer mapping gate",
         "state": {
           "none": "Ingen"
         }

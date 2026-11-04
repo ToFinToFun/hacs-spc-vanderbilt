@@ -11,7 +11,7 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/imduffy15/hacs-spc-vanderbilt/issues",
   "requirements": [
-    "spcedp@git+https://github.com/ToFinToFun/spcedp.git@7124bad0a77c1129364efb4584bbc910cbedbdbd"
+    "spcedp@git+https://github.com/ToFinToFun/spcedp.git@a070b4a6964cad9cdb7286a8ed023259aa2a3abd"
   ],
   "single_config_entry": false,
   "version": "1.0.0rc3"

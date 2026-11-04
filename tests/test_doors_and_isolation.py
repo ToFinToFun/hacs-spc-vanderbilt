@@ -60,8 +60,8 @@ def _hub(*, doors: dict | None = None, zones: dict | None = None) -> MagicMock:
     hub.panel = MagicMock()
     hub.panel.doors = doors or {}
     hub.panel.zones = zones or {}
-    hub.panel.outputs = {}
-    hub.door_lock_outputs = {}
+    hub.panel.mapping_gates = {}
+    hub.door_lock_gates = {}
     hub.async_refresh = AsyncMock()
     hub.commands = CommandTracker()
     return hub
@@ -89,7 +89,7 @@ def test_lock_and_mode_select_follow_the_door_mode(
     assert lock.extra_state_attributes == {
         "door_mode": door_mode,
         "door_status": "ok",
-        "lock_output": None,
+        "lock_mapping_gate": None,
         "changed_by_id": None,
         "source": None,
     }

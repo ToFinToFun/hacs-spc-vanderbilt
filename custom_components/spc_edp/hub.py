@@ -23,13 +23,13 @@ from .const import (
     CONF_BIND,
     CONF_ENCRYPTION_KEY,
     CONF_IDLE_TIMEOUT,
-    CONF_OUTPUT_POLL_INTERVAL,
+    CONF_MAPPING_GATE_POLL_INTERVAL,
     CONF_PORT,
     CONF_RECEIVER_ID,
     CONF_RECONNECT_GRACE,
     DEFAULT_AREA_REFRESH_INTERVAL,
     DEFAULT_IDLE_TIMEOUT,
-    DEFAULT_OUTPUT_POLL_INTERVAL,
+    DEFAULT_MAPPING_GATE_POLL_INTERVAL,
     DEFAULT_RECONNECT_GRACE,
     DOOR_SIA_CODES,
     DUPLICATE_EVENT_MEMORY,
@@ -38,12 +38,12 @@ from .const import (
     SIGNAL_DOOR_ACCESS,
     SIGNAL_NEW_AREAS,
     SIGNAL_NEW_DOORS,
-    SIGNAL_NEW_OUTPUTS,
+    SIGNAL_NEW_MAPPING_GATES,
     SIGNAL_NEW_ZONES,
     SIGNAL_PANEL_EVENT,
     SIGNAL_UPDATE_AREA,
     SIGNAL_UPDATE_DOOR,
-    SIGNAL_UPDATE_OUTPUT,
+    SIGNAL_UPDATE_MAPPING_GATE,
     SIGNAL_UPDATE_SYSTEM,
     SIGNAL_UPDATE_ZONE,
 )
@@ -65,7 +65,7 @@ class SpcEdpHub:
         self.available = False
         self._server: PanelServer | None = None
         self._area_unsub: Callable[[], None] | None = None
-        self._output_unsub: Callable[[], None] | None = None
+        self._gate_unsub: Callable[[], None] | None = None
         self._grace_unsub: CALLBACK_TYPE | None = None
         self._stopping = False
         self._refresh_lock = asyncio.Lock()
@@ -73,8 +73,8 @@ class SpcEdpHub:
         self.commands = CommandTracker()
         # Events the panel may re-send after a redial.
         self._recent_events: deque[tuple[str, str, str, str]] = deque(maxlen=DUPLICATE_EVENT_MEMORY)
-        # Which output, if any, reports each door's lock (set by its select).
-        self.door_lock_outputs: dict[int, int] = {}
+        # Which mapping gate, if any, follows each door's lock (set by its select).
+        self.door_lock_gates: dict[int, int] = {}
 
         self._session: Session | None = None
 
@@ -116,10 +116,12 @@ class SpcEdpHub:
         return float(self.entry.options.get(CONF_RECONNECT_GRACE, DEFAULT_RECONNECT_GRACE))
 
     @property
-    def output_poll_interval(self) -> float:
-        """Seconds between output reads; 0 reads them only with the periodic refresh."""
+    def mapping_gate_poll_interval(self) -> float:
+        """Seconds between mapping gate reads; 0 reads them only with the periodic refresh."""
         return float(
-            self.entry.options.get(CONF_OUTPUT_POLL_INTERVAL, DEFAULT_OUTPUT_POLL_INTERVAL)
+            self.entry.options.get(
+                CONF_MAPPING_GATE_POLL_INTERVAL, DEFAULT_MAPPING_GATE_POLL_INTERVAL
+            )
         )
 
     @property
@@ -150,7 +152,7 @@ class SpcEdpHub:
         """Close the listener and its connections."""
         self._stopping = True
         self._stop_area_refresh()
-        self._stop_output_poll()
+        self._stop_gate_poll()
         if self._server is not None:
             await self._server.__aexit__(None, None, None)
             self._server = None
@@ -166,7 +168,7 @@ class SpcEdpHub:
         try:
             self.panel = await Panel.from_session(session)
             await self._refresh_doors(self.panel)
-            await self._refresh_outputs(self.panel)
+            await self._refresh_mapping_gates(self.panel)
             await self._refresh_system(self.panel)
             self._cancel_grace()
             self.connected = True
@@ -174,7 +176,7 @@ class SpcEdpHub:
             self._announce_new_entities()
             self._async_set_availability(True)
             self._start_area_refresh()
-            self._start_output_poll()
+            self._start_gate_poll()
             async for event in self.panel.events():
                 await self._handle_sia_event(self.panel, event)
         except SpcError:
@@ -185,7 +187,7 @@ class SpcEdpHub:
             was_connected = self.connected
             self.connected = False
             self._stop_area_refresh()
-            self._stop_output_poll()
+            self._stop_gate_poll()
             if self._stopping:
                 self._async_mark_unavailable()
             elif was_connected and self.available and self.reconnect_grace > 0:
@@ -229,7 +231,7 @@ class SpcEdpHub:
         async_dispatcher_send(self.hass, SIGNAL_NEW_ZONES.format(entry_id), set(self.panel.zones))
         async_dispatcher_send(self.hass, SIGNAL_NEW_DOORS.format(entry_id), set(self.panel.doors))
         async_dispatcher_send(
-            self.hass, SIGNAL_NEW_OUTPUTS.format(entry_id), set(self.panel.outputs)
+            self.hass, SIGNAL_NEW_MAPPING_GATES.format(entry_id), set(self.panel.mapping_gates)
         )
 
     @staticmethod
@@ -241,12 +243,12 @@ class SpcEdpHub:
             _LOGGER.debug("Door status refresh failed", exc_info=True)
 
     @staticmethod
-    async def _refresh_outputs(panel: Panel) -> frozenset[int]:
-        """Read outputs; a failed read keeps the previous snapshot."""
+    async def _refresh_mapping_gates(panel: Panel) -> frozenset[int]:
+        """Read mapping gates; a failed read keeps the previous snapshot."""
         try:
-            return await panel.refresh_outputs()
+            return await panel.refresh_mapping_gates()
         except SpcError:
-            _LOGGER.debug("Output status refresh failed", exc_info=True)
+            _LOGGER.debug("Mapping gate refresh failed", exc_info=True)
             return frozenset()
 
     @staticmethod
@@ -289,7 +291,7 @@ class SpcEdpHub:
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id))
         for door_id in update.door_ids:
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_DOOR.format(entry_id, door_id))
-        self._dispatch_outputs(update.output_ids)
+        self._dispatch_mapping_gates(update.mapping_gate_ids)
         if update.system:
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_SYSTEM.format(entry_id))
         async_dispatcher_send(self.hass, SIGNAL_PANEL_EVENT.format(entry_id), event)
@@ -318,46 +320,46 @@ class SpcEdpHub:
             self._area_unsub()
             self._area_unsub = None
 
-    def _start_output_poll(self) -> None:
-        self._stop_output_poll()
+    def _start_gate_poll(self) -> None:
+        self._stop_gate_poll()
         panel = self.panel
-        if self.output_poll_interval <= 0 or panel is None or not panel.outputs:
+        if self.mapping_gate_poll_interval <= 0 or panel is None or not panel.mapping_gates:
             return
-        self._output_unsub = async_track_time_interval(
+        self._gate_unsub = async_track_time_interval(
             self.hass,
-            self._async_poll_outputs,
-            timedelta(seconds=self.output_poll_interval),
+            self._async_poll_mapping_gates,
+            timedelta(seconds=self.mapping_gate_poll_interval),
             cancel_on_shutdown=True,
         )
 
-    def _stop_output_poll(self) -> None:
-        if self._output_unsub is not None:
-            self._output_unsub()
-            self._output_unsub = None
+    def _stop_gate_poll(self) -> None:
+        if self._gate_unsub is not None:
+            self._gate_unsub()
+            self._gate_unsub = None
 
-    async def _async_poll_outputs(self, _now: object) -> None:
-        """Follow mapping-gate outputs, which change without an event."""
+    async def _async_poll_mapping_gates(self, _now: object) -> None:
+        """Follow mapping gates, which change without an event."""
         panel = self.panel
         if panel is None or not self.connected or self._refresh_lock.locked():
             return
         async with self._refresh_lock:
             if panel is not self.panel or not self.connected:
                 return
-            changed = await self._refresh_outputs(panel)
-        self._dispatch_outputs(changed)
+            changed = await self._refresh_mapping_gates(panel)
+        self._dispatch_mapping_gates(changed)
 
-    def _dispatch_outputs(self, output_ids: frozenset[int]) -> None:
-        if not output_ids or self.panel is None:
+    def _dispatch_mapping_gates(self, gate_ids: frozenset[int]) -> None:
+        if not gate_ids or self.panel is None:
             return
         entry_id = self.entry.entry_id
         async_dispatcher_send(
-            self.hass, SIGNAL_NEW_OUTPUTS.format(entry_id), set(self.panel.outputs)
+            self.hass, SIGNAL_NEW_MAPPING_GATES.format(entry_id), set(self.panel.mapping_gates)
         )
-        for output_id in output_ids:
-            async_dispatcher_send(self.hass, SIGNAL_UPDATE_OUTPUT.format(entry_id, output_id))
-        # A door's lock state can follow an output.
-        for door_id, output_id in self.door_lock_outputs.items():
-            if output_id in output_ids:
+        for gate_id in gate_ids:
+            async_dispatcher_send(self.hass, SIGNAL_UPDATE_MAPPING_GATE.format(entry_id, gate_id))
+        # A door's lock state can follow a mapping gate.
+        for door_id, gate_id in self.door_lock_gates.items():
+            if gate_id in gate_ids:
                 async_dispatcher_send(self.hass, SIGNAL_UPDATE_DOOR.format(entry_id, door_id))
 
     async def async_refresh(self, _now: object = None) -> None:
@@ -377,7 +379,7 @@ class SpcEdpHub:
                 await panel.refresh_areas()
                 await panel.refresh_zones()
                 await self._refresh_doors(panel)
-                output_ids = await self._refresh_outputs(panel)
+                gate_ids = await self._refresh_mapping_gates(panel)
                 await self._refresh_system(panel)
         except SpcError:
             _LOGGER.debug("Area/zone reconciliation refresh failed", exc_info=True)
@@ -391,5 +393,5 @@ class SpcEdpHub:
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id))
         for door_id in door_ids | set(panel.doors):
             async_dispatcher_send(self.hass, SIGNAL_UPDATE_DOOR.format(entry_id, door_id))
-        self._dispatch_outputs(output_ids)
+        self._dispatch_mapping_gates(gate_ids)
         async_dispatcher_send(self.hass, SIGNAL_UPDATE_SYSTEM.format(entry_id))

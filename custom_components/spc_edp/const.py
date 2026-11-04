@@ -15,7 +15,7 @@ CONF_ENCRYPTION_KEY = "encryption_key"
 CONF_IDLE_TIMEOUT = "idle_timeout"
 CONF_AREA_REFRESH_INTERVAL = "area_refresh_interval"
 CONF_RECONNECT_GRACE = "reconnect_grace"
-CONF_OUTPUT_POLL_INTERVAL = "output_poll_interval"
+CONF_MAPPING_GATE_POLL_INTERVAL = "mapping_gate_poll_interval"
 
 DEFAULT_BIND = "0.0.0.0"  # nosec B104 # panels initiate connections on the LAN.
 DEFAULT_PORT = 50000
@@ -28,9 +28,9 @@ DEFAULT_AREA_REFRESH_INTERVAL = 30  # seconds; reconciles event drift/fallback
 # seconds, delivering queued events after the redial. Entities keep their last
 # state for this long instead of flapping through "unavailable".
 DEFAULT_RECONNECT_GRACE = 60  # seconds; 0 marks entities unavailable at once
-# The panel sends no event when a mapping-gate output changes, and a door's
-# momentary unlock lasts a few seconds, so outputs are read this often.
-DEFAULT_OUTPUT_POLL_INTERVAL = 1  # seconds; 0 reads outputs only with the refresh
+# The panel sends no event when a mapping gate changes, and a door's
+# momentary unlock lasts a few seconds, so mapping gates are read this often.
+DEFAULT_MAPPING_GATE_POLL_INTERVAL = 1  # seconds; 0 reads them only with the refresh
 
 MIN_PORT = 1
 MAX_PORT = 65535
@@ -47,8 +47,8 @@ SIGNAL_UPDATE_DOOR = "spc_edp_update_door_{}_{}"
 SIGNAL_NEW_DOORS = "spc_edp_new_doors_{}"
 SIGNAL_DOOR_ACCESS = "spc_edp_door_access_{}_{}"
 SIGNAL_AREA_CHANGE = "spc_edp_area_change_{}_{}"
-SIGNAL_UPDATE_OUTPUT = "spc_edp_update_output_{}_{}"
-SIGNAL_NEW_OUTPUTS = "spc_edp_new_outputs_{}"
+SIGNAL_UPDATE_MAPPING_GATE = "spc_edp_update_mapping_gate_{}_{}"
+SIGNAL_NEW_MAPPING_GATES = "spc_edp_new_mapping_gates_{}"
 SIGNAL_UPDATE_SYSTEM = "spc_edp_update_system_{}"
 SIGNAL_PANEL_EVENT = "spc_edp_panel_event_{}"
 

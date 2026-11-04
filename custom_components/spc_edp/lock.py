@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
-from spcedp import Door, Output, SiaEvent
+from spcedp import Door, MappingGate, SiaEvent
 
 from .commands import async_run_command
 from .const import DOOR_MODE_SIA_CODES, SIGNAL_DOOR_ACCESS, SIGNAL_NEW_DOORS, SIGNAL_UPDATE_DOOR
@@ -50,7 +50,7 @@ class SpcEdpDoorLock(SpcEdpEntity, LockEntity, RestoreEntity):  # pylint: disabl
     PIN or exit button) both report `locked`; its open mode reports `unlocked`.
     The `door_mode` attribute tells the three apart. The panel does not report
     the lock output itself; when the door's lock output select names an output
-    that follows it (such as a mapping gate), the state follows that output
+    that follows it (a mapping gate), the state follows that mapping gate
     instead, including momentary unlocks. Lock returns an unlocked door to
     normal and leaves a locked door locked; open releases the lock for the
     panel's momentary unlock time.
@@ -85,17 +85,17 @@ class SpcEdpDoorLock(SpcEdpEntity, LockEntity, RestoreEntity):  # pylint: disabl
         return super().available and self._door is not None
 
     @property
-    def _lock_output(self) -> Output | None:
+    def _lock_gate(self) -> MappingGate | None:
         panel = self._hub.panel
-        output_id = self._hub.door_lock_outputs.get(self._door_id)
-        return panel.outputs.get(output_id) if panel and output_id is not None else None
+        gate_id = self._hub.door_lock_gates.get(self._door_id)
+        return panel.mapping_gates.get(gate_id) if panel and gate_id is not None else None
 
     @property
     def is_locked(self) -> bool | None:
         """Follow the lock output if one is set, else locked unless held unlocked."""
-        output = self._lock_output
-        if output is not None and output.is_on is not None:
-            return not output.is_on
+        gate = self._lock_gate
+        if gate is not None and gate.is_on is not None:
+            return not gate.is_on
         option = door_mode_option(self._door)
         return None if option is None else option != "unlocked"
 
@@ -104,11 +104,11 @@ class SpcEdpDoorLock(SpcEdpEntity, LockEntity, RestoreEntity):  # pylint: disabl
         """The panel's door mode, the lock output followed and who last changed the mode."""
         if self._door is None:
             return None
-        output = self._lock_output
+        gate = self._lock_gate
         return {
             "door_mode": door_mode_option(self._door),
             "door_status": door_status(self._door),
-            "lock_output": output.name if output else None,
+            "lock_mapping_gate": gate.name if gate else None,
             **self._attribution,
         }
 

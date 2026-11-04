@@ -1,4 +1,4 @@
-"""Select platform for Vanderbilt SPC (EDP) door modes and lock outputs."""
+"""Select platform for Vanderbilt SPC (EDP) door modes and the mapping gate a lock follows."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from spcedp import Door
 
-from .const import SIGNAL_NEW_DOORS, SIGNAL_NEW_OUTPUTS, SIGNAL_UPDATE_DOOR
+from .const import SIGNAL_NEW_DOORS, SIGNAL_NEW_MAPPING_GATES, SIGNAL_UPDATE_DOOR
 from .door import DOOR_MODE_OPTIONS, async_set_door_mode, door_mode_option
 from .entity import SpcEdpEntity, door_label
 from .hub import SpcEdpHub
@@ -35,7 +35,7 @@ async def async_setup_entry(
             for door_id in new
             for entity in (
                 SpcEdpDoorModeSelect(hub, door_id),
-                SpcEdpDoorLockOutputSelect(hub, door_id),
+                SpcEdpDoorLockGateSelect(hub, door_id),
             )
         )
 
@@ -92,29 +92,29 @@ class SpcEdpDoorModeSelect(SpcEdpEntity, SelectEntity):  # pylint: disable=abstr
         await async_set_door_mode(self._hub, self._door_id, option, user)
 
 
-NO_OUTPUT = "none"
+NO_GATE = "none"
 
 
 # Home Assistant supports async overrides and optional methods on this base class.
-class SpcEdpDoorLockOutputSelect(SpcEdpEntity, SelectEntity, RestoreEntity):  # pylint: disable=abstract-method
-    """Which panel output follows the door's lock, for the lock entity's state.
+class SpcEdpDoorLockGateSelect(SpcEdpEntity, SelectEntity, RestoreEntity):  # pylint: disable=abstract-method
+    """Which mapping gate follows the door's lock, for the lock entity's state.
 
     The panel does not report a door controller's lock output. An output that
     follows it, typically a mapping gate, makes momentary unlocks visible.
-    Outputs are named as in the panel; `none` uses the door mode.
+    Mapping gates are named as in the panel; `none` uses the door mode.
     """
 
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_translation_key = "door_lock_output"
+    _attr_translation_key = "door_lock_gate"
 
     def __init__(self, hub: SpcEdpHub, door_id: int) -> None:
         """Initialize the lock output select for one door."""
         super().__init__(hub)
         self._door_id = door_id
-        self._attr_unique_id = f"{hub.unique_id}-door-{door_id}-lock-output"
+        self._attr_unique_id = f"{hub.unique_id}-door-{door_id}-lock-gate"
         self._attr_translation_placeholders = {"door": door_label(hub, door_id)}
-        # The chosen output's name, kept while the panel is not connected.
-        self._choice = NO_OUTPUT
+        # The chosen mapping gate's name, kept while the panel is not connected.
+        self._choice = NO_GATE
 
     @property
     def _door(self) -> Door | None:
@@ -128,17 +128,17 @@ class SpcEdpDoorLockOutputSelect(SpcEdpEntity, SelectEntity, RestoreEntity):  # 
     @property
     def options(self) -> list[str]:
         panel = self._hub.panel
-        names = sorted({o.name for o in panel.outputs.values() if o.name}) if panel else []
-        if self._choice != NO_OUTPUT and self._choice not in names:
+        names = sorted({o.name for o in panel.mapping_gates.values() if o.name}) if panel else []
+        if self._choice != NO_GATE and self._choice not in names:
             names.append(self._choice)
-        return [NO_OUTPUT, *names]
+        return [NO_GATE, *names]
 
     @property
     def current_option(self) -> str:
         return self._choice
 
     async def async_added_to_hass(self) -> None:
-        """Restore the chosen output and follow output additions and renames."""
+        """Restore the chosen mapping gate and follow additions and renames."""
         await super().async_added_to_hass()
         if (last := await self.async_get_last_state()) is not None and last.state not in (
             "unknown",
@@ -149,37 +149,37 @@ class SpcEdpDoorLockOutputSelect(SpcEdpEntity, SelectEntity, RestoreEntity):  # 
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
-                SIGNAL_NEW_OUTPUTS.format(self._hub.entry.entry_id),
-                self._handle_outputs,
+                SIGNAL_NEW_MAPPING_GATES.format(self._hub.entry.entry_id),
+                self._handle_mapping_gates,
             )
         )
 
     async def async_will_remove_from_hass(self) -> None:
-        self._hub.door_lock_outputs.pop(self._door_id, None)
+        self._hub.door_lock_gates.pop(self._door_id, None)
 
     @callback
-    def _handle_outputs(self, _output_ids: set[int]) -> None:
+    def _handle_mapping_gates(self, _gate_ids: set[int]) -> None:
         self._link()
         self.async_write_ha_state()
 
     def _link(self) -> None:
-        """Point the hub at the chosen output's ID, if the panel has it."""
+        """Point the hub at the chosen mapping gate's ID, if the panel has it."""
         panel = self._hub.panel
-        output_id = next(
+        gate_id = next(
             (
-                output.id
-                for output in (panel.outputs.values() if panel else ())
-                if output.name == self._choice
+                gate.id
+                for gate in (panel.mapping_gates.values() if panel else ())
+                if gate.name == self._choice
             ),
             None,
         )
-        if output_id is None:
-            self._hub.door_lock_outputs.pop(self._door_id, None)
+        if gate_id is None:
+            self._hub.door_lock_gates.pop(self._door_id, None)
         else:
-            self._hub.door_lock_outputs[self._door_id] = output_id
+            self._hub.door_lock_gates[self._door_id] = gate_id
 
     async def async_select_option(self, option: str) -> None:
-        """Follow this output for the door's lock state."""
+        """Follow this mapping gate for the door's lock state."""
         self._choice = option
         self._link()
         self.async_write_ha_state()

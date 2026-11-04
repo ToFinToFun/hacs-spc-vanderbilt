@@ -53,13 +53,13 @@
           "idle_timeout": "Idle timeout (seconds)",
           "area_refresh_interval": "Area/zone reconciliation interval (seconds)",
           "reconnect_grace": "Reconnect grace period (seconds)",
-          "output_poll_interval": "Output poll interval (seconds)"
+          "mapping_gate_poll_interval": "Mapping gate poll interval (seconds)"
         },
         "data_description": {
           "idle_timeout": "Disconnect the panel if it sends nothing for this long. The panel typically polls every ~10 seconds.",
           "area_refresh_interval": "A slower full re-sync of areas/zones to correct for any drift not covered by pushed events.",
           "reconnect_grace": "Keep the last known state this long while the panel redials its EDP link, which it does several times a day. Commands are refused until it is back. 0 marks entities unavailable immediately.",
-          "output_poll_interval": "How often to read the panel's outputs, which change without an event (mapping gates, such as one following a door's lock). 0 reads them only with the reconciliation."
+          "mapping_gate_poll_interval": "How often to read the panel's mapping gates, which change without an event (such as one that follows a door's lock). 0 reads them only with the reconciliation."
         }
       }
     }
@@ -619,14 +619,14 @@
               "remote": "Remote (EDP)"
             }
           },
-          "lock_output": {
-            "name": "Follows output"
-          },
           "door_status": {
             "name": "Door status",
             "state": {
               "ok": "OK"
             }
+          },
+          "lock_mapping_gate": {
+            "name": "Follows mapping gate"
           }
         }
       }
@@ -640,8 +640,8 @@
           "unlocked": "Door Unlocked"
         }
       },
-      "door_lock_output": {
-        "name": "{door} lock follows output",
+      "door_lock_gate": {
+        "name": "{door} lock follows mapping gate",
         "state": {
           "none": "None"
         }

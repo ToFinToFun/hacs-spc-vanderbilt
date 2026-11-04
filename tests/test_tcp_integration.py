@@ -177,8 +177,8 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
         sensor = entities["test-panel-zone-1"]
         lock = entities["test-panel-door-1"]
         mode = entities["test-panel-door-1-mode"]
-        lock_output = entities["test-panel-door-1-lock-output"]
-        gate = entities["test-panel-output-1"]
+        lock_gate = entities["test-panel-door-1-lock-gate"]
+        gate = entities["test-panel-mapping-gate-1"]
         panel_event = entities["test-panel-panel-event"]
         assert {
             "test-panel-door-1-alarm",
@@ -240,18 +240,18 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
         assert hass.states.get(panel_event).attributes["event_type"] == "zo"
         assert hass.states.get(panel_event).attributes["zone"] == "Front Door"
         assert hass.states.get(mode).name == "SPC4300 Front Door door mode"
-        # A mapping-gate output that follows the lock makes a momentary open visible.
+        # A mapping gate that follows the lock makes a momentary open visible.
         await hass.services.async_call(
             "select",
             "select_option",
-            {"entity_id": lock_output, "option": "Front Door unlocked"},
+            {"entity_id": lock_gate, "option": "Front Door unlocked"},
             blocking=True,
         )
         assert hass.states.get(lock).state == "locked"
         panel.gate = "1"
         await wait_for(lambda: hass.states.get(gate).state == "on")
         await wait_for(lambda: hass.states.get(lock).state == "unlocked")
-        assert hass.states.get(lock).attributes["lock_output"] == "Front Door unlocked"
+        assert hass.states.get(lock).attributes["lock_mapping_gate"] == "Front Door unlocked"
         panel.gate = "0"
         await wait_for(lambda: hass.states.get(lock).state == "locked")
         # The panel redials its link several times a day; within the reconnect

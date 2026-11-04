@@ -28,14 +28,14 @@ from .const import (
     CONF_BIND,
     CONF_ENCRYPTION_KEY,
     CONF_IDLE_TIMEOUT,
-    CONF_OUTPUT_POLL_INTERVAL,
+    CONF_MAPPING_GATE_POLL_INTERVAL,
     CONF_PORT,
     CONF_RECEIVER_ID,
     CONF_RECONNECT_GRACE,
     DEFAULT_AREA_REFRESH_INTERVAL,
     DEFAULT_BIND,
     DEFAULT_IDLE_TIMEOUT,
-    DEFAULT_OUTPUT_POLL_INTERVAL,
+    DEFAULT_MAPPING_GATE_POLL_INTERVAL,
     DEFAULT_PORT,
     DEFAULT_RECONNECT_GRACE,
     DOMAIN,
@@ -215,8 +215,10 @@ class SpcEdpOptionsFlow(OptionsFlow):
                     NumberSelectorConfig(min=0, max=600, mode=NumberSelectorMode.BOX)
                 ),
                 vol.Required(
-                    CONF_OUTPUT_POLL_INTERVAL,
-                    default=options.get(CONF_OUTPUT_POLL_INTERVAL, DEFAULT_OUTPUT_POLL_INTERVAL),
+                    CONF_MAPPING_GATE_POLL_INTERVAL,
+                    default=options.get(
+                        CONF_MAPPING_GATE_POLL_INTERVAL, DEFAULT_MAPPING_GATE_POLL_INTERVAL
+                    ),
                 ): NumberSelector(NumberSelectorConfig(min=0, max=60, mode=NumberSelectorMode.BOX)),
             }
         )

@@ -1,4 +1,4 @@
-"""Binary sensors for Vanderbilt SPC (EDP) zones, doors, outputs and panel health."""
+"""Binary sensors for Vanderbilt SPC (EDP) zones, doors, mapping gates and panel health."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from spcedp import (
     SYSTEM_ALERTS,
     Door,
-    Output,
+    MappingGate,
     SiaEvent,
     SystemAlertInfo,
     SystemAlertState,
@@ -32,10 +32,10 @@ from .const import (
     DOOR_ALARM_SET_CODES,
     SIGNAL_DOOR_ACCESS,
     SIGNAL_NEW_DOORS,
-    SIGNAL_NEW_OUTPUTS,
+    SIGNAL_NEW_MAPPING_GATES,
     SIGNAL_NEW_ZONES,
     SIGNAL_UPDATE_DOOR,
-    SIGNAL_UPDATE_OUTPUT,
+    SIGNAL_UPDATE_MAPPING_GATE,
     SIGNAL_UPDATE_SYSTEM,
     SIGNAL_UPDATE_ZONE,
 )
@@ -110,15 +110,15 @@ async def async_setup_entry(
             )
         )
 
-    added_outputs: set[int] = set()
+    added_gates: set[int] = set()
 
     @callback
-    def _add_outputs(output_ids: set[int]) -> None:
-        new = output_ids - added_outputs
+    def _add_gates(gate_ids: set[int]) -> None:
+        new = gate_ids - added_gates
         if not new:
             return
-        added_outputs.update(new)
-        async_add_entities(SpcEdpOutputBinarySensor(hub, output_id) for output_id in new)
+        added_gates.update(new)
+        async_add_entities(SpcEdpMappingGateBinarySensor(hub, gate_id) for gate_id in new)
 
     entry.async_on_unload(
         async_dispatcher_connect(hass, SIGNAL_NEW_ZONES.format(entry.entry_id), _add_zones)
@@ -127,7 +127,7 @@ async def async_setup_entry(
         async_dispatcher_connect(hass, SIGNAL_NEW_DOORS.format(entry.entry_id), _add_doors)
     )
     entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_NEW_OUTPUTS.format(entry.entry_id), _add_outputs)
+        async_dispatcher_connect(hass, SIGNAL_NEW_MAPPING_GATES.format(entry.entry_id), _add_gates)
     )
 
     async_add_entities(
@@ -139,7 +139,7 @@ async def async_setup_entry(
     if hub.panel is not None:
         _add_zones(set(hub.panel.zones))
         _add_doors(set(hub.panel.doors))
-        _add_outputs(set(hub.panel.outputs))
+        _add_gates(set(hub.panel.mapping_gates))
 
 
 class SpcEdpZoneBinarySensor(SpcEdpEntity, BinarySensorEntity):
@@ -361,39 +361,39 @@ class SpcEdpDoorDrsBinarySensor(SpcEdpEntity, BinarySensorEntity):
         )
 
 
-class SpcEdpOutputBinarySensor(SpcEdpEntity, BinarySensorEntity):
-    """One panel output or mapping-gate output, named as in the panel."""
+class SpcEdpMappingGateBinarySensor(SpcEdpEntity, BinarySensorEntity):
+    """One mapping gate (web interface: Outputs > Mapping Gate), named as in the panel."""
 
-    def __init__(self, hub: SpcEdpHub, output_id: int) -> None:
+    def __init__(self, hub: SpcEdpHub, gate_id: int) -> None:
         super().__init__(hub)
-        self._output_id = output_id
-        self._attr_unique_id = f"{hub.unique_id}-output-{output_id}"
+        self._gate_id = gate_id
+        self._attr_unique_id = f"{hub.unique_id}-mapping-gate-{gate_id}"
 
     @property
-    def _output(self) -> Output | None:
+    def _gate(self) -> MappingGate | None:
         panel = self._hub.panel
-        return panel.outputs.get(self._output_id) if panel else None
+        return panel.mapping_gates.get(self._gate_id) if panel else None
 
     @property
     def name(self) -> str:
-        output = self._output
-        return output.name if output and output.name else f"Output {self._output_id}"
+        gate = self._gate
+        return gate.name if gate and gate.name else f"Mapping gate {self._gate_id}"
 
     @property
     def available(self) -> bool:
-        return super().available and self._output is not None
+        return super().available and self._gate is not None
 
     @property
     def is_on(self) -> bool | None:
-        output = self._output
-        return None if output is None else output.is_on
+        gate = self._gate
+        return None if gate is None else gate.is_on
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
-                SIGNAL_UPDATE_OUTPUT.format(self._hub.entry.entry_id, self._output_id),
+                SIGNAL_UPDATE_MAPPING_GATE.format(self._hub.entry.entry_id, self._gate_id),
                 self.async_write_ha_state,
             )
         )
