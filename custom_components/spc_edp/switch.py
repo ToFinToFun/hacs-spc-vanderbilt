@@ -15,8 +15,12 @@ from spcedp.panel import Zone
 
 from .commands import async_run_command
 from .const import SIGNAL_NEW_ZONES, SIGNAL_UPDATE_ZONE
-from .entity import SpcEdpEntity
+from .entity import SpcEdpEntity, zone_label
 from .hub import SpcEdpHub
+from .sensor import ZONE_STATUS_OPTIONS
+
+# Zone statuses the switch reports as bypassed; alarm, tamper and trouble are not.
+BYPASSED = frozenset({ZoneStatus.INHIBITED, ZoneStatus.ISOLATED})
 
 
 async def async_setup_entry(
@@ -47,22 +51,19 @@ class SpcEdpZoneIsolateSwitch(SpcEdpEntity, SwitchEntity):  # pylint: disable=ab
     """On while the zone is bypassed (isolated or inhibited) at the panel."""
 
     _attr_entity_category = EntityCategory.CONFIG
+    _attr_translation_key = "zone_isolate"
 
     def __init__(self, hub: SpcEdpHub, zone_id: int) -> None:
         """Initialize the isolate switch for one zone."""
         super().__init__(hub)
         self._zone_id = zone_id
         self._attr_unique_id = f"{hub.unique_id}-zone-{zone_id}-isolate"
+        self._attr_translation_placeholders = {"zone": zone_label(hub, zone_id)}
 
     @property
     def _zone(self) -> Zone | None:
         panel = self._hub.panel
         return panel.zones.get(self._zone_id) if panel else None
-
-    @property
-    def name(self) -> str:
-        zone = self._zone
-        return f"{zone.name if zone and zone.name else f'Zone {self._zone_id}'} isolated"
 
     @property
     def available(self) -> bool:
@@ -74,13 +75,13 @@ class SpcEdpZoneIsolateSwitch(SpcEdpEntity, SwitchEntity):  # pylint: disable=ab
         status = zone.zone_status if zone else None
         if status is None:
             return None
-        return status is not ZoneStatus.NORMAL
+        return status in BYPASSED
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         zone = self._zone
         status = zone.zone_status if zone else None
-        return {"zone_status": status.name.lower()} if status else None
+        return {"zone_status": ZONE_STATUS_OPTIONS[status]} if status else None
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to zone-specific + availability updates."""
@@ -105,7 +106,7 @@ class SpcEdpZoneIsolateSwitch(SpcEdpEntity, SwitchEntity):  # pylint: disable=ab
         """Restore the zone from whichever bypass the panel reports."""
         zone = self._connected_panel().zone(self._zone_id)
         current = self._zone
-        if current is None or current.zone_status is ZoneStatus.NORMAL:
+        if current is None or current.zone_status not in BYPASSED:
             return  # the panel rejects restoring a zone that is not bypassed
         if current.zone_status is ZoneStatus.INHIBITED:
             await async_run_command(zone.deinhibit(), "restoring this zone")

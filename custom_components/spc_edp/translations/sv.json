@@ -626,6 +626,26 @@
           }
         }
       }
+    },
+    "switch": {
+      "zone_isolate": {
+        "name": "{zone} isolera",
+        "state_attributes": {
+          "zone_status": {
+            "name": "Status",
+            "state": {
+              "normal": "Normal",
+              "inhibit": "Spärra",
+              "isolate": "Isolera",
+              "soak": "Registrera",
+              "tamper": "Sabotage",
+              "alarm": "Larm",
+              "ok_not_recent": "OK not recent",
+              "trouble": "Problem"
+            }
+          }
+        }
+      }
     }
   }
 }

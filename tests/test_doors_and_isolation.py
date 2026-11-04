@@ -267,12 +267,15 @@ def test_door_alarm_follows_forced_and_left_open_until_restored() -> None:
     assert sensor.async_write_ha_state.call_count == 3
 
 
-@pytest.mark.parametrize(("status", "on"), [("0", False), ("1", True), ("2", True), ("", None)])
+@pytest.mark.parametrize(
+    ("status", "on"),
+    [("0", False), ("1", True), ("2", True), ("4", False), ("5", False), ("7", False), ("", None)],
+)
 def test_isolate_switch_reports_any_bypass(status: str, on: bool | None) -> None:
     zone = Zone(id=9, type="0", name="Tvättstuga Dörr", area_id=1, input="0", status=status)
     switch = SpcEdpZoneIsolateSwitch(_hub(zones={9: zone}), 9)
     assert switch.is_on is on
-    assert switch.name == "Tvättstuga Dörr isolated"
+    assert switch.translation_placeholders == {"zone": "Tvättstuga Dörr"}
 
 
 @pytest.mark.asyncio
@@ -350,3 +353,18 @@ async def test_resent_events_are_ignored_after_a_redial(hass) -> None:
     assert signals.count(SIGNAL_DOOR_ACCESS.format("test-entry", 3)) == 2
     assert signals.count(SIGNAL_AREA_CHANGE.format("test-entry", 1)) == 1
     assert panel.reconcile_event.await_count == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["4", "5", "7"])
+async def test_isolate_switch_leaves_tamper_alarm_and_trouble_alone(status: str) -> None:
+    zone = Zone(id=9, type="0", name="Tvättstuga Dörr", area_id=1, input="0", status=status)
+    hub = _hub(zones={9: zone})
+    control = hub.panel.zone.return_value
+    control.deinhibit = AsyncMock()
+    control.deisolate = AsyncMock()
+
+    await SpcEdpZoneIsolateSwitch(hub, 9).async_turn_off()
+
+    control.deinhibit.assert_not_awaited()
+    control.deisolate.assert_not_awaited()

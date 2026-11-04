@@ -691,6 +691,26 @@
           }
         }
       }
+    },
+    "switch": {
+      "zone_isolate": {
+        "name": "{zone} isolate",
+        "state_attributes": {
+          "zone_status": {
+            "name": "Status",
+            "state": {
+              "normal": "Normal",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate",
+              "soak": "Soak",
+              "tamper": "Tamper",
+              "alarm": "Alarm",
+              "ok_not_recent": "OK not recent",
+              "trouble": "Trouble"
+            }
+          }
+        }
+      }
     }
   }
 }
