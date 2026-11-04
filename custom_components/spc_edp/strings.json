@@ -89,7 +89,7 @@
             "name": "Source"
           },
           "lock_output": {
-            "name": "Lock output"
+            "name": "Follows output"
           }
         }
       }
@@ -107,7 +107,7 @@
         "state": {
           "none": "None"
         },
-        "name": "{door} lock output"
+        "name": "{door} lock follows output"
       }
     },
     "binary_sensor": {

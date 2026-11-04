@@ -86,7 +86,7 @@ derived entities are named after their zone or door and translated.
 | --- | --- |
 | Area | Alarm control panel |
 | Zone | Open/closed binary sensor, isolate switch, fault and tamper binary sensors, status sensor, input sensor (diagnostic) |
-| Door | Lock, mode select, lock output select, access event, alarm and exit button binary sensors |
+| Door | Lock, mode select, "lock follows output" select, access event, alarm and exit button binary sensors |
 | Output | Binary sensor (panel outputs and mapping-gate outputs) |
 | Panel | Event entity for every panel event; engineer mode; battery voltage, auxiliary voltage and current, mains frequency; mains, battery, power supply, low voltage, communication, modem, network, expansion, RF, siren and service conditions |
 
@@ -125,12 +125,13 @@ and open releases the lock for the door's momentary unlock time. Commands to
 the mode a door already has send nothing; the panel would reject them.
 
 The panel does not report a door controller's lock output, so by default a
-momentary release is visible only as an access event. To see the lock
-itself, program a mapping gate (or output) in the panel that follows the
-door's lock and choose it in the door's lock output select: the lock entity
-then follows that output, including momentary unlocks, and shows it as
-`lock_output`. Alternatively wire the lock's status contact to a spare zone
-input. Whether the door stands open is its door-position zone.
+momentary release is visible only as an access event, and the lock entity
+shows the door mode. If the panel is programmed so that a mapping gate (or
+output) follows the door's lock, choose that output in the door's "lock
+follows output" select: the lock entity then follows it and shows it as
+`lock_output`. Whether a gate can follow the lock depends on the panel's
+programming; this integration only reads the output. Alternatively wire the
+lock's status contact to a spare zone input. Whether the door stands open is its door-position zone.
 
 `changed_by`, `changed_by_id` and `source` on the lock name who last changed
 the mode and from where: `home_assistant` for this integration's own commands,

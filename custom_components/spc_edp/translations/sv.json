@@ -24,7 +24,7 @@
             "name": "Källa"
           },
           "lock_output": {
-            "name": "Låsutgång"
+            "name": "Följer utgång"
           }
         }
       }
@@ -42,7 +42,7 @@
         "state": {
           "none": "Ingen"
         },
-        "name": "{door} låsutgång"
+        "name": "{door} lås följer utgång"
       }
     },
     "binary_sensor": {
