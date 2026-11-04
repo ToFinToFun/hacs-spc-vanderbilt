@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -12,7 +14,16 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
-from spcedp import Door, Output, SiaEvent, ZoneStatus, ZoneType
+from spcedp import (
+    SYSTEM_ALERTS,
+    Door,
+    Output,
+    SiaEvent,
+    SystemAlertInfo,
+    SystemAlertState,
+    ZoneStatus,
+    ZoneType,
+)
 from spcedp.panel import Zone
 
 from .const import (
@@ -23,16 +34,14 @@ from .const import (
     SIGNAL_NEW_DOORS,
     SIGNAL_NEW_OUTPUTS,
     SIGNAL_NEW_ZONES,
-    SIGNAL_PANEL_EVENT,
     SIGNAL_UPDATE_DOOR,
     SIGNAL_UPDATE_OUTPUT,
     SIGNAL_UPDATE_SYSTEM,
     SIGNAL_UPDATE_ZONE,
-    SYSTEM_CONDITIONS,
-    TAMPER_CONDITIONS,
 )
 from .entity import SpcEdpEntity, door_label, zone_label
 from .hub import SpcEdpHub
+from .sensor import ZONE_INPUT_OPTIONS
 
 # This remains an adapter concern: Home Assistant's entity device classes are
 # not part of the protocol SDK. The SDK owns the complete ZoneType vocabulary.
@@ -97,7 +106,7 @@ async def async_setup_entry(
             for door_id in new
             for entity in (
                 SpcEdpDoorAlarmBinarySensor(hub, door_id),
-                SpcEdpDoorExitButtonBinarySensor(hub, door_id),
+                SpcEdpDoorDrsBinarySensor(hub, door_id),
             )
         )
 
@@ -124,7 +133,7 @@ async def async_setup_entry(
     async_add_entities(
         [
             SpcEdpEngineerModeBinarySensor(hub),
-            *(SpcEdpSystemConditionBinarySensor(hub, key) for key in SYSTEM_CONDITIONS),
+            *(SpcEdpSystemAlertBinarySensor(hub, alert) for alert in SYSTEM_ALERTS),
         ]
     )
     if hub.panel is not None:
@@ -277,8 +286,8 @@ class _ZoneEntity(SpcEdpEntity):
 class SpcEdpZoneFaultBinarySensor(_ZoneEntity, BinarySensorEntity):
     """On while the zone's input reports a wiring or detector fault, or trouble.
 
-    `fault` names it: short, disconnected, pir_masked, dc_substitution,
-    sensor_missing, offline or trouble.
+    `fault` names it with the input state (short, disconnect, masked, dc_sub,
+    sensor_missing, offline) or the zone status `trouble`.
     """
 
     _suffix = "fault"
@@ -291,7 +300,7 @@ class SpcEdpZoneFaultBinarySensor(_ZoneEntity, BinarySensorEntity):
         if zone is None:
             return None
         if (fault := zone.fault) is not None:
-            return fault.name.lower()
+            return ZONE_INPUT_OPTIONS[fault]
         return "trouble" if zone.zone_status is ZoneStatus.TROUBLE else None
 
     @property
@@ -316,15 +325,15 @@ class SpcEdpZoneTamperBinarySensor(_ZoneEntity, BinarySensorEntity):
         return None if zone is None else zone.zone_status is ZoneStatus.TAMPER
 
 
-class SpcEdpDoorExitButtonBinarySensor(SpcEdpEntity, BinarySensorEntity):
-    """The door's request-to-exit (DRS) input as the panel reads it."""
+class SpcEdpDoorDrsBinarySensor(SpcEdpEntity, BinarySensorEntity):
+    """The door's DRS (door release switch) input as the panel reads it."""
 
-    _attr_translation_key = "door_exit_button"
+    _attr_translation_key = "door_drs"
 
     def __init__(self, hub: SpcEdpHub, door_id: int) -> None:
         super().__init__(hub)
         self._door_id = door_id
-        self._attr_unique_id = f"{hub.unique_id}-door-{door_id}-exit-button"
+        self._attr_unique_id = f"{hub.unique_id}-door-{door_id}-drs"
         self._attr_translation_placeholders = {"door": door_label(hub, door_id)}
 
     @property
@@ -421,65 +430,67 @@ class SpcEdpEngineerModeBinarySensor(SpcEdpEntity, BinarySensorEntity):
         )
 
 
-class SpcEdpSystemConditionBinarySensor(SpcEdpEntity, BinarySensorEntity, RestoreEntity):
-    """A panel-wide fault or tamper, raised and restored by the panel's events.
+def system_alert_key(alert: SystemAlertInfo) -> str:
+    """Translation key from the alert's name, e.g. `controller_aux_fuse_fault`."""
+    return re.sub(r"[^a-z0-9]+", "_", alert.name.lower()).strip("_")
 
-    The panel offers no read of these conditions, so the state is restored
-    across Home Assistant restarts. `active` lists the addresses (device or
-    module numbers) still raised; `last_event` describes the latest event.
+
+# System alert Status values, as the panel's web interface shows them.
+SYSTEM_ALERT_STATUS_OK = "ok"
+
+
+class SpcEdpSystemAlertBinarySensor(SpcEdpEntity, BinarySensorEntity):
+    """One of the panel's system alerts (web interface: Status > System Alerts).
+
+    On while its Input reports the fault or tamper; `status` is the alert's
+    Status column: `ok`, `alert`, `inhibit` or `isolate`.
     """
 
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    def __init__(self, hub: SpcEdpHub, key: str) -> None:
+    def __init__(self, hub: SpcEdpHub, alert: SystemAlertInfo) -> None:
         super().__init__(hub)
-        self._key = key
-        self._set_codes, self._clear_codes = SYSTEM_CONDITIONS[key]
-        self._attr_unique_id = f"{hub.unique_id}-{key.replace('_', '-')}"
+        self._alert = alert
+        key = system_alert_key(alert)
+        self._attr_unique_id = f"{hub.unique_id}-system-alert-{alert.id}"
         self._attr_translation_key = key
         self._attr_device_class = (
-            BinarySensorDeviceClass.TAMPER
-            if key in TAMPER_CONDITIONS
-            else BinarySensorDeviceClass.PROBLEM
+            BinarySensorDeviceClass.TAMPER if "tamper" in key else BinarySensorDeviceClass.PROBLEM
         )
-        self._active: list[str] = []
-        self._last_event: str | None = None
 
     @property
-    def is_on(self) -> bool:
-        return bool(self._active)
+    def _state(self) -> SystemAlertState | None:
+        panel = self._hub.panel
+        return panel.system.system_alert(self._alert) if panel and panel.system else None
 
     @property
-    def extra_state_attributes(self) -> dict[str, list[str] | str | None]:
-        return {"active": list(self._active), "last_event": self._last_event}
+    def available(self) -> bool:
+        return super().available and self._state is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        state = self._state
+        return None if state is None else state.input
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str | None]:
+        state = self._state
+        if state is None:
+            return {"status": None}
+        if state.isolated:
+            status = "isolate"
+        elif state.inhibited:
+            status = "inhibit"
+        elif state.alert:
+            status = "alert"
+        else:
+            status = SYSTEM_ALERT_STATUS_OK
+        return {"status": status}
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        if (last := await self.async_get_last_state()) is not None:
-            self._active = list(last.attributes.get("active") or [])
-            if last.state == STATE_ON and not self._active:
-                self._active = [""]
-            self._last_event = last.attributes.get("last_event")
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
-                SIGNAL_PANEL_EVENT.format(self._hub.entry.entry_id),
-                self._handle_event,
+                SIGNAL_UPDATE_SYSTEM.format(self._hub.entry.entry_id),
+                self.async_write_ha_state,
             )
         )
-
-    @callback
-    def _handle_event(self, event: SiaEvent) -> None:
-        code = event.sia_code.upper()
-        address = event.address.strip()
-        if code in self._set_codes:
-            if address not in self._active:
-                self._active.append(address)
-        elif code in self._clear_codes:
-            # A restore for an address never raised here still clears a
-            # condition restored from before a restart without addresses.
-            self._active = [a for a in self._active if a not in (address, "")]
-        else:
-            return
-        self._last_event = " ".join(part for part in (code, address, event.description) if part)
-        self.async_write_ha_state()

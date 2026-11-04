@@ -28,9 +28,29 @@ from .const import SIGNAL_NEW_ZONES, SIGNAL_UPDATE_SYSTEM, SIGNAL_UPDATE_ZONE
 from .entity import SpcEdpEntity, zone_label
 from .hub import SpcEdpHub
 
-# Zone STATUS and INPUT tokens as sensor options.
-ZONE_STATUS_OPTIONS: dict[ZoneStatus, str] = {status: status.name.lower() for status in ZoneStatus}
-ZONE_INPUT_OPTIONS: dict[ZoneInput, str] = {state: state.name.lower() for state in ZoneInput}
+# Zone Status and Input values, named as Vanderbilt's manual and the panel's
+# web interface name them (Status > Inputs). `ok_not_recent` and `offline`
+# come from the SPC Web Gateway's value list; the manual does not name them.
+ZONE_STATUS_OPTIONS: dict[ZoneStatus, str] = {
+    ZoneStatus.NORMAL: "normal",
+    ZoneStatus.INHIBITED: "inhibit",
+    ZoneStatus.ISOLATED: "isolate",
+    ZoneStatus.SOAK: "soak",
+    ZoneStatus.TAMPER: "tamper",
+    ZoneStatus.ALARM: "alarm",
+    ZoneStatus.OK_NOT_RECENT: "ok_not_recent",
+    ZoneStatus.TROUBLE: "trouble",
+}
+ZONE_INPUT_OPTIONS: dict[ZoneInput, str] = {
+    ZoneInput.CLOSED: "closed",
+    ZoneInput.OPEN: "open",
+    ZoneInput.SHORT: "short",
+    ZoneInput.DISCONNECTED: "disconnect",
+    ZoneInput.PIR_MASKED: "masked",
+    ZoneInput.DC_SUBSTITUTION: "dc_sub",
+    ZoneInput.SENSOR_MISSING: "sensor_missing",
+    ZoneInput.OFFLINE: "offline",
+}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -71,8 +91,8 @@ PANEL_SENSORS: tuple[PanelSensorDescription, ...] = (
         value=lambda status: status.aux_current,
     ),
     PanelSensorDescription(
-        key="mains_frequency",
-        translation_key="mains_frequency",
+        key="ac_frequency",
+        translation_key="ac_frequency",
         device_class=SensorDeviceClass.FREQUENCY,
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         state_class=SensorStateClass.MEASUREMENT,

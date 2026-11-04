@@ -166,7 +166,7 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
     try:
         await panel.connect()
         await wait_for(
-            lambda: len(er.async_entries_for_config_entry(registry, entry.entry_id)) == 40
+            lambda: len(er.async_entries_for_config_entry(registry, entry.entry_id)) == 44
         )
         entities = {
             e.unique_id: e.entity_id
@@ -182,13 +182,13 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
         panel_event = entities["test-panel-panel-event"]
         assert {
             "test-panel-door-1-alarm",
-            "test-panel-door-1-exit-button",
+            "test-panel-door-1-drs",
             "test-panel-zone-1-fault",
             "test-panel-zone-1-tamper",
             "test-panel-zone-1-status",
             "test-panel-zone-1-input",
             "test-panel-engineer-mode",
-            "test-panel-mains-fault",
+            "test-panel-system-alert-0",
             "test-panel-battery-voltage",
         } <= set(entities)
         await wait_for(
@@ -239,7 +239,7 @@ async def test_setup_services_reload_and_reconnect(hass, unused_tcp_port, key):
         await wait_for(lambda: hass.states.get(sensor).state == "on")
         assert hass.states.get(panel_event).attributes["event_type"] == "zo"
         assert hass.states.get(panel_event).attributes["zone"] == "Front Door"
-        assert hass.states.get(mode).name == "SPC4300 Front Door mode"
+        assert hass.states.get(mode).name == "SPC4300 Front Door door mode"
         # A mapping-gate output that follows the lock makes a momentary open visible.
         await hass.services.async_call(
             "select",

@@ -79,16 +79,19 @@ TCP port and encryption key.
 
 ## Use
 
-One device holds everything the panel reports. Names come from the panel;
-derived entities are named after their zone or door and translated.
+One device holds everything the panel reports. Zone, door, area and output
+names come from the panel; derived entities are named after their zone or
+door. Other names and states use the panel's own vocabulary: its web
+interface (Status pages, access log) and Vanderbilt's manual and SIA code
+table, in English and Swedish.
 
 | For each | Entities |
 | --- | --- |
 | Area | Alarm control panel |
 | Zone | Open/closed binary sensor, isolate switch, fault and tamper binary sensors, status sensor, input sensor (diagnostic) |
-| Door | Lock, mode select, "lock follows output" select, access event, alarm and exit button binary sensors |
+| Door | Lock, door mode select, "lock follows output" select, access event, alarm and DRS binary sensors |
 | Output | Binary sensor (panel outputs and mapping-gate outputs) |
-| Panel | Event entity for every panel event; engineer mode; battery voltage, auxiliary voltage and current, mains frequency; mains, battery, power supply, low voltage, communication, modem, network, expansion, RF, siren and service conditions |
+| Panel | Event entity for every panel event; engineer mode; Battery Voltage, Aux. Voltage, Aux. Current, Mains time sync. (Hz); one binary sensor per system alert |
 
 Open/active zones report `on`. Device classes are best-effort; change them in
 Home Assistant if needed.
@@ -107,21 +110,22 @@ EDP permissions. Exit engineer mode at the panel if remote arming is rejected.
 Alarm entities show who last set or unset the area in `changed_by`,
 `changed_by_id` and `source`; for Home Assistant's own commands, `changed_by`
 is the Home Assistant user who gave it (or `Home Assistant` for automations).
-The panel's own record is shown as `last_set`, `last_set_by`, `last_unset` and
-`last_unset_by`, and credits a change whose event was missed. The panel itself
+The panel's own record is shown as `last_set_time`, `last_set_user_name`,
+`last_unset_time` and `last_unset_user_name` (its AREA_STATUS fields), and credits a change whose event was missed. The panel itself
 records Home Assistant's commands as its remote engineer user (9998).
 
-A door has three modes, shown and set by its mode select:
+A door has three modes, shown and set by its door mode select (the panel's
+Lock, Normal and Unlock actions):
 
-| Mode select | SPC door mode | Lock state |
+| Door mode select | Panel status | Lock state |
 | --- | --- | --- |
-| `locked` | Locked: no access at all, not even momentary | `locked` |
-| `normal` | Normal: locked, opened by card, PIN or exit button | `locked` |
-| `unlocked` | Open permanently: unlocked until the mode changes | `unlocked` |
+| `locked` | Door Locked: no access at all, not even momentary | `locked` |
+| `normal` | Door Normal: locked, opened by card, PIN or DRS | `locked` |
+| `unlocked` | Door Unlocked: unlocked until the mode changes | `unlocked` |
 
 The lock suits dashboards, voice and automations: unlock sets `unlocked`,
 lock returns an unlocked door to `normal` and leaves a `locked` door locked,
-and open releases the lock for the door's momentary unlock time. Commands to
+and open is the panel's Momentary action (unlocks for one timed interval). Commands to
 the mode a door already has send nothing; the panel would reject them.
 
 The panel does not report a door controller's lock output, so by default a
@@ -131,7 +135,8 @@ output) follows the door's lock, choose that output in the door's "lock
 follows output" select: the lock entity then follows it and shows it as
 `lock_output`. Whether a gate can follow the lock depends on the panel's
 programming; this integration only reads the output. Alternatively wire the
-lock's status contact to a spare zone input. Whether the door stands open is its door-position zone.
+lock's status contact to a spare zone input. Whether the door stands open is its
+DPS (door position sensor) zone; the DRS binary sensor is the door release switch.
 
 `changed_by`, `changed_by_id` and `source` on the lock name who last changed
 the mode and from where: `home_assistant` for this integration's own commands,
@@ -140,13 +145,16 @@ another EDP client (the panel attributes EDP commands to its remote user,
 typically 9998) and `panel_automatic` when no user is named, such as a
 calendar or trigger.
 
-The access event entity fires `access_granted`, `access_denied`,
-`passback_denied`, `exit_request`, `forced_open`, `left_open`,
-`door_restored`, `reader_locked` and `reader_unlocked`. Attributes carry the
+The access event entity fires the access-control SIA events, named as in
+Vanderbilt's SIA code table: `access_granted` (DG), `access_denied` (DD),
+`access_denied_passback` (DI), `request_to_exit` (DX), `door_forced` (DF),
+`door_left_open` (DN), `door_restoral` (DR), `reader_locked` (RL) and
+`reader_unlocked` (RG). Attributes carry the
 user, user ID, the user's registered card, the direction and the `source`;
 denials carry the panel's `reason_code` and a `reason` (`invalid_pin`,
-`invalid_card_format` or `unknown`). The door alarm binary sensor is on while
-the door is forced or left open and clears on the panel's door restore.
+`invalid_card_format` or `unknown`, as the access log words them). The door
+alarm binary sensor is on after `door_forced` or `door_left_open` and clears on
+`door_restoral`; its `condition` names which.
 
 The panel event entity fires for every event the panel sends, with the SIA
 code as event type (`zo`, `dg`, `ta`, ...; unlisted codes as `unknown`) and
@@ -155,19 +163,26 @@ the panel's time, the user it names and the zone, area or door it refers to.
 Use it for logbooks and automations on anything the dedicated entities do
 not cover.
 
-Zone fault sensors are on while the input reports a short, disconnection,
-masking, DC substitution, missing sensor or offline detector, or the panel
-reports trouble; the `fault` attribute names which. Tamper sensors follow
+Zone status sensors show the zone's Status (`normal`, `inhibit`, `isolate`,
+`soak`, `tamper`, `alarm`, `trouble`, ...) and input sensors its Input
+(`closed`, `open`, `short`, `disconnect`, `masked`, `dc_sub`,
+`sensor_missing`, `offline`). Zone fault sensors are on while the Input
+reports a fault or the Status is `trouble`; the `fault` attribute names which. Tamper sensors follow
 the zone's tamper status. Alarm, trouble, tamper and wiring events re-read
 the zones at once.
 
 Outputs change without an event, so they are read every second (the
 **output poll interval** option; `0` reads them only with the periodic
-refresh). The panel status (engineer mode, power readings) is read with the
-periodic refresh and on power and engineer-mode events. Panel-wide
-conditions (mains, battery and so on) are raised and restored by the
-panel's events, are restored across restarts, and list the addresses still
-raised in `active`.
+refresh). The panel status (engineer mode, power readings, system alerts)
+is read with the periodic refresh and on power, communication, tamper and
+engineer-mode events.
+
+System alerts are those on the web interface's Status > System Alerts page
+(Controller Mains Fault, Controller Cabinet Tamper, X-BUS Cable Fault, Code
+Tamper, Network Fault and so on), read from the status reply's alert masks.
+Each is on while its Input reports the fault; `status` is its Status column
+(`ok`, `alert`, `inhibit`, `isolate`). User Duress, User RF FOB Panic and
+Wireless Two Way Devices Require Relearning are not in the masks.
 
 The panel re-sends events after it redials; re-sent events are recognised by
 their panel timestamp and ignored.

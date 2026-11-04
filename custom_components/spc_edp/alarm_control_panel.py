@@ -68,8 +68,9 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity, RestoreEnti
 
     `changed_by` names who last set or unset the area and `source` where from;
     Home Assistant's own commands name the Home Assistant user. The panel's
-    own record of the last set and unset (time and panel user) is shown too,
-    and credits a change whose event was missed.
+    own record of the last set and unset (AREA_STATUS LAST_SET_TIME,
+    LAST_SET_USER_NAME and the unset equivalents) is shown too, and credits a
+    change whose event was missed.
     """
 
     _attr_code_arm_required = False
@@ -94,10 +95,10 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity, RestoreEnti
         """Who last set or unset the area and from where, and the panel's record."""
         area = self._area
         record: dict[str, str | None] = {
-            "last_set": _panel_time(area.last_set) if area else None,
-            "last_set_by": (area.last_set_user_name or None) if area else None,
-            "last_unset": _panel_time(area.last_unset) if area else None,
-            "last_unset_by": (area.last_unset_user_name or None) if area else None,
+            "last_set_time": _panel_time(area.last_set) if area else None,
+            "last_set_user_name": (area.last_set_user_name or None) if area else None,
+            "last_unset_time": _panel_time(area.last_unset) if area else None,
+            "last_unset_user_name": (area.last_unset_user_name or None) if area else None,
         }
         return {**self._attribution, **record}
 
@@ -137,7 +138,7 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity, RestoreEnti
             for key in self._attribution:
                 self._attribution[key] = last.attributes.get(key)
             self._credited_change = max(
-                (last.attributes.get(key) or "" for key in ("last_set", "last_unset")),
+                (last.attributes.get(key) or "" for key in ("last_set_time", "last_unset_time")),
                 default="",
             )
         entry_id = self._hub.entry.entry_id

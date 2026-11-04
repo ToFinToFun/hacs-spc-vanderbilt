@@ -1,245 +1,326 @@
 {
   "entity": {
-    "lock": {
-      "door": {
+    "alarm_control_panel": {
+      "area": {
         "state_attributes": {
-          "door_mode": {
-            "name": "Dörrläge",
-            "state": {
-              "locked": "Låst",
-              "normal": "Normal",
-              "unlocked": "Upplåst"
-            }
-          },
           "changed_by_id": {
             "name": "Ändrad av användar-ID"
           },
           "source": {
+            "name": "Källa",
             "state": {
               "home_assistant": "Home Assistant",
-              "panel": "Användare i SPC",
-              "panel_automatic": "SPC (automatiskt)",
+              "panel": "Användare i centralen",
+              "panel_automatic": "Centralen (automatiskt)",
               "remote": "Fjärr (EDP)"
-            },
-            "name": "Källa"
+            }
           },
-          "lock_output": {
-            "name": "Följer utgång"
+          "last_set_time": {
+            "name": "LAST_SET_TIME"
+          },
+          "last_set_user_name": {
+            "name": "LAST_SET_USER_NAME"
+          },
+          "last_unset_time": {
+            "name": "LAST_UNSET_TIME"
+          },
+          "last_unset_user_name": {
+            "name": "LAST_UNSET_USER_NAME"
           }
         }
       }
     },
-    "select": {
-      "door_mode": {
-        "state": {
-          "locked": "Låst",
-          "normal": "Normal",
-          "unlocked": "Upplåst"
-        },
-        "name": "{door} läge"
-      },
-      "door_lock_output": {
-        "state": {
-          "none": "Ingen"
-        },
-        "name": "{door} lås följer utgång"
-      }
-    },
     "binary_sensor": {
-      "door_alarm": {
-        "state_attributes": {
-          "condition": {
-            "name": "Orsak",
-            "state": {
-              "forced_open": "Forcerad",
-              "left_open": "Ej stängd"
-            }
-          }
-        },
-        "name": "{door} larm"
-      },
       "zone_fault": {
+        "name": "{zone} fel",
         "state_attributes": {
           "fault": {
             "name": "Fel",
             "state": {
-              "short": "Kortslutning",
-              "disconnected": "Avbrott",
-              "pir_masked": "Maskerad",
-              "dc_substitution": "DC-substitution",
+              "short": "Kortsluten",
+              "disconnect": "Avbrott",
+              "masked": "Maskerad",
+              "dc_sub": "DC-ers",
               "sensor_missing": "Detektor saknas",
               "offline": "Offline",
-              "trouble": "Fel"
+              "trouble": "Problem"
             }
-          }
-        },
-        "name": "{zone} fel"
-      },
-      "engineer_mode": {
-        "name": "Installatörsläge"
-      },
-      "mains_fault": {
-        "name": "Nätspänningsfel",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
-          }
-        }
-      },
-      "battery_fault": {
-        "name": "Batterifel",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
-          }
-        }
-      },
-      "psu_fault": {
-        "name": "Nätaggregatsfel",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
-          }
-        }
-      },
-      "low_voltage": {
-        "name": "Låg spänning",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
-          }
-        }
-      },
-      "communication_fault": {
-        "name": "Kommunikationsfel",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
-          }
-        }
-      },
-      "modem_fault": {
-        "name": "Modemfel",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
-          }
-        }
-      },
-      "network_fault": {
-        "name": "Nätverksfel",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
-          }
-        }
-      },
-      "expansion_fault": {
-        "name": "Expansionsenhet fel",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
-          }
-        }
-      },
-      "expansion_tamper": {
-        "name": "Expansionsenhet sabotage",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
-          }
-        }
-      },
-      "rf_jamming": {
-        "name": "Radiostörning",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
-          }
-        }
-      },
-      "rf_tamper": {
-        "name": "RF-sabotage",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
-          }
-        }
-      },
-      "siren_fault": {
-        "name": "Sirenfel",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
-          }
-        }
-      },
-      "service_required": {
-        "name": "Service krävs",
-        "state_attributes": {
-          "active": {
-            "name": "Aktiva adresser"
-          },
-          "last_event": {
-            "name": "Senaste händelse"
           }
         }
       },
       "zone_tamper": {
         "name": "{zone} sabotage"
       },
-      "door_exit_button": {
-        "name": "{door} öppnaknapp"
+      "door_drs": {
+        "name": "{door} DRS öppnaknapp"
+      },
+      "door_alarm": {
+        "name": "{door} larm",
+        "state_attributes": {
+          "condition": {
+            "name": "Orsak",
+            "state": {
+              "door_forced": "Dörr forcerad",
+              "door_left_open": "Dörr ej stängd"
+            }
+          }
+        }
+      },
+      "engineer_mode": {
+        "name": "Installatörsläge"
+      },
+      "controller_mains_fault": {
+        "name": "Centralapparat, nätspänningsfel",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "controller_battery_fault": {
+        "name": "Centralapparat, batterifel",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "controller_psu_fault": {
+        "name": "Centralapparat, fel på PSU-enhet",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "controller_aux_fuse_fault": {
+        "name": "Centralapparat, fel på säkring till AUX-utgång",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "controller_external_bell_fuse_fault": {
+        "name": "Centralapparat, fel på säkring till extern siren",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "controller_internal_bell_fuse_fault": {
+        "name": "Centralapparat, fel på säkring till intern siren",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "bell_tamper": {
+        "name": "Sirensabotage",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "controller_cabinet_tamper": {
+        "name": "Centralapparat, kapslingsabotage",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "controller_aux_tamper_1": {
+        "name": "Centralapparat, AUX-utgång sabotage 1",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "controller_aux_tamper_2": {
+        "name": "Centralapparat, AUX-utgång sabotage 2",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "controller_antenna_tamper": {
+        "name": "Antennsabotage",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "controller_rf_jamming": {
+        "name": "RF Störning",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "fail_to_communicate": {
+        "name": "Kommunikationsfel",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "x_bus_cable_fault": {
+        "name": "X-BUS-kabelfel",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "code_tamper": {
+        "name": "Kod försök",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "ethernet_link": {
+        "name": "Ethernet länk",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
+      },
+      "network_fault": {
+        "name": "Nätverksfel",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Larm",
+              "inhibit": "Spärra",
+              "isolate": "Isolera"
+            }
+          }
+        }
       }
     },
     "event": {
       "door_access": {
+        "name": "{door} passering",
         "state_attributes": {
           "event_type": {
             "state": {
-              "access_granted": "Passage beviljad",
-              "access_denied": "Passage nekad",
-              "passback_denied": "Passage nekad (passback)",
-              "exit_request": "Öppnaknapp",
-              "forced_open": "Forcerad",
-              "left_open": "Ej stängd",
-              "door_restored": "Dörr återställd",
+              "access_granted": "Giltig passage",
+              "access_denied": "Åtkomst nekad",
+              "access_denied_passback": "Passage nekad passback",
+              "request_to_exit": "Förfrågan för utpassering",
+              "door_forced": "Dörr forcerad",
+              "door_left_open": "Dörr ej stängd",
+              "door_restoral": "Dörråterställning",
               "reader_locked": "Läsare spärrad",
               "reader_unlocked": "Läsare olåst"
             }
@@ -249,54 +330,23 @@
             "state": {
               "invalid_pin": "Ogiltig PIN-kod",
               "invalid_card_format": "Ogiltigt kortformat",
-              "unknown": "Okänt"
+              "unknown": "Okänd"
             }
           },
           "source": {
+            "name": "Källa",
             "state": {
               "home_assistant": "Home Assistant",
-              "panel": "Användare i SPC",
-              "panel_automatic": "SPC (automatiskt)",
+              "panel": "Användare i centralen",
+              "panel_automatic": "Centralen (automatiskt)",
               "remote": "Fjärr (EDP)"
-            },
-            "name": "Källa"
+            }
           }
-        },
-        "name": "{door} passage"
+        }
       },
       "panel_event": {
         "name": "Händelse",
         "state_attributes": {
-          "code": {
-            "name": "Kod"
-          },
-          "address": {
-            "name": "Adress"
-          },
-          "description": {
-            "name": "Beskrivning"
-          },
-          "panel_time": {
-            "name": "Centralens tid"
-          },
-          "user": {
-            "name": "Användare"
-          },
-          "user_id": {
-            "name": "Användar-ID"
-          },
-          "zone": {
-            "name": "Sektion"
-          },
-          "area": {
-            "name": "Område"
-          },
-          "door": {
-            "name": "Dörr"
-          },
-          "name": {
-            "name": "Namn"
-          },
           "event_type": {
             "state": {
               "ar": "Nätspänningsåterställning",
@@ -445,39 +495,84 @@
               "zm": "Sektion maskerad",
               "zo": "Sektion öppen",
               "zx": "Sektion kort",
-              "unknown": "Okänd händelse"
+              "unknown": "Okänd"
             }
+          },
+          "code": {
+            "name": "Kod"
+          },
+          "name": {
+            "name": "Namn"
+          },
+          "address": {
+            "name": "Adress"
+          },
+          "description": {
+            "name": "Beskrivning"
+          },
+          "panel_time": {
+            "name": "Centralens tid"
+          },
+          "user": {
+            "name": "Användare"
+          },
+          "user_id": {
+            "name": "Användar-ID"
+          },
+          "zone": {
+            "name": "Sektion"
+          },
+          "area": {
+            "name": "Område"
+          },
+          "door": {
+            "name": "Dörr"
           }
         }
       }
     },
-    "alarm_control_panel": {
-      "area": {
+    "lock": {
+      "door": {
         "state_attributes": {
+          "door_mode": {
+            "name": "Dörrläge",
+            "state": {
+              "locked": "Dörr låst",
+              "normal": "Dörr i normalläge",
+              "unlocked": "Dörr olåst"
+            }
+          },
           "changed_by_id": {
             "name": "Ändrad av användar-ID"
           },
           "source": {
+            "name": "Källa",
             "state": {
               "home_assistant": "Home Assistant",
-              "panel": "Användare i SPC",
-              "panel_automatic": "SPC (automatiskt)",
+              "panel": "Användare i centralen",
+              "panel_automatic": "Centralen (automatiskt)",
               "remote": "Fjärr (EDP)"
-            },
-            "name": "Källa"
+            }
           },
-          "last_set": {
-            "name": "Senast tillkopplad"
-          },
-          "last_set_by": {
-            "name": "Tillkopplad av"
-          },
-          "last_unset": {
-            "name": "Senast frånkopplad"
-          },
-          "last_unset_by": {
-            "name": "Frånkopplad av"
+          "lock_output": {
+            "name": "Följer utgång"
           }
+        }
+      }
+    },
+    "select": {
+      "door_mode": {
+        "name": "{door} dörrläge",
+        "state": {
+          "locked": "Dörr låst",
+          "normal": "Dörr i normalläge",
+          "unlocked": "Dörr olåst"
+        }
+      },
+      "door_lock_output": {
+        "name": "{door} lås följer utgång",
+        "state": {
+          "none": "Ingen"
         }
       }
     },
@@ -486,50 +581,50 @@
         "name": "Batterispänning"
       },
       "aux_voltage": {
-        "name": "Hjälpspänning"
+        "name": "AUX-utgång, spänning"
       },
       "aux_current": {
-        "name": "Hjälpström"
+        "name": "AUX-utgång, ström"
       },
-      "mains_frequency": {
-        "name": "Nätfrekvens"
+      "ac_frequency": {
+        "name": "230VAC TIDSSYNK."
       },
       "zone_status": {
+        "name": "{zone} status",
         "state": {
           "normal": "Normal",
-          "inhibited": "Spärrad",
-          "isolated": "Isolerad",
-          "soak": "Provdrift",
+          "inhibit": "Spärra",
+          "isolate": "Isolera",
+          "soak": "Registrera",
           "tamper": "Sabotage",
           "alarm": "Larm",
-          "ok_not_recent": "OK (ej nyligen)",
-          "trouble": "Fel"
-        },
-        "name": "{zone} status"
+          "ok_not_recent": "OK not recent",
+          "trouble": "Problem"
+        }
       },
       "zone_input": {
+        "name": "{zone} ingång",
         "state": {
           "closed": "Stängd",
           "open": "Öppen",
-          "short": "Kortslutning",
-          "disconnected": "Avbrott",
-          "pir_masked": "Maskerad",
-          "dc_substitution": "DC-substitution",
+          "short": "Kortsluten",
+          "disconnect": "Avbrott",
+          "masked": "Maskerad",
+          "dc_sub": "DC-ers",
           "sensor_missing": "Detektor saknas",
           "offline": "Offline"
         },
         "state_attributes": {
           "logic_input": {
-            "name": "Logisk ingång"
+            "name": "LOGIC_INPUT"
           },
           "proc_state": {
-            "name": "Behandlingsstatus"
+            "name": "PROC_STATE"
           },
           "alarm_state": {
-            "name": "Larmstatus"
+            "name": "ALARM_STATE"
           }
-        },
-        "name": "{zone} ingång"
+        }
       }
     }
   }

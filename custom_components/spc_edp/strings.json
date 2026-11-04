@@ -65,246 +65,327 @@
     }
   },
   "entity": {
-    "lock": {
-      "door": {
+    "alarm_control_panel": {
+      "area": {
         "state_attributes": {
-          "door_mode": {
-            "name": "Door mode",
-            "state": {
-              "locked": "Locked",
-              "normal": "Normal",
-              "unlocked": "Unlocked"
-            }
-          },
           "changed_by_id": {
             "name": "Changed by user ID"
           },
           "source": {
+            "name": "Source",
             "state": {
               "home_assistant": "Home Assistant",
               "panel": "Panel user",
               "panel_automatic": "Panel (automatic)",
               "remote": "Remote (EDP)"
-            },
-            "name": "Source"
+            }
           },
-          "lock_output": {
-            "name": "Follows output"
+          "last_set_time": {
+            "name": "LAST_SET_TIME"
+          },
+          "last_set_user_name": {
+            "name": "LAST_SET_USER_NAME"
+          },
+          "last_unset_time": {
+            "name": "LAST_UNSET_TIME"
+          },
+          "last_unset_user_name": {
+            "name": "LAST_UNSET_USER_NAME"
           }
         }
       }
     },
-    "select": {
-      "door_mode": {
-        "state": {
-          "locked": "Locked",
-          "normal": "Normal",
-          "unlocked": "Unlocked"
-        },
-        "name": "{door} mode"
-      },
-      "door_lock_output": {
-        "state": {
-          "none": "None"
-        },
-        "name": "{door} lock follows output"
-      }
-    },
     "binary_sensor": {
-      "door_alarm": {
-        "state_attributes": {
-          "condition": {
-            "name": "Condition",
-            "state": {
-              "forced_open": "Forced open",
-              "left_open": "Left open"
-            }
-          }
-        },
-        "name": "{door} alarm"
-      },
       "zone_fault": {
+        "name": "{zone} fault",
         "state_attributes": {
           "fault": {
             "name": "Fault",
             "state": {
-              "short": "Short circuit",
-              "disconnected": "Disconnected",
-              "pir_masked": "Masked",
-              "dc_substitution": "DC substitution",
+              "short": "Short",
+              "disconnect": "Disconnect",
+              "masked": "Masked",
+              "dc_sub": "DC Sub",
               "sensor_missing": "Sensor missing",
               "offline": "Offline",
               "trouble": "Trouble"
             }
-          }
-        },
-        "name": "{zone} fault"
-      },
-      "engineer_mode": {
-        "name": "Engineer mode"
-      },
-      "mains_fault": {
-        "name": "Mains fault",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
-          }
-        }
-      },
-      "battery_fault": {
-        "name": "Battery fault",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
-          }
-        }
-      },
-      "psu_fault": {
-        "name": "Power supply fault",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
-          }
-        }
-      },
-      "low_voltage": {
-        "name": "Low voltage",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
-          }
-        }
-      },
-      "communication_fault": {
-        "name": "Communication fault",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
-          }
-        }
-      },
-      "modem_fault": {
-        "name": "Modem fault",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
-          }
-        }
-      },
-      "network_fault": {
-        "name": "Network link fault",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
-          }
-        }
-      },
-      "expansion_fault": {
-        "name": "Expansion fault",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
-          }
-        }
-      },
-      "expansion_tamper": {
-        "name": "Expansion tamper",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
-          }
-        }
-      },
-      "rf_jamming": {
-        "name": "RF jamming",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
-          }
-        }
-      },
-      "rf_tamper": {
-        "name": "RF tamper",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
-          }
-        }
-      },
-      "siren_fault": {
-        "name": "Siren fault",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
-          }
-        }
-      },
-      "service_required": {
-        "name": "Service required",
-        "state_attributes": {
-          "active": {
-            "name": "Active addresses"
-          },
-          "last_event": {
-            "name": "Last event"
           }
         }
       },
       "zone_tamper": {
         "name": "{zone} tamper"
       },
-      "door_exit_button": {
-        "name": "{door} exit button"
+      "door_drs": {
+        "name": "{door} DRS"
+      },
+      "door_alarm": {
+        "name": "{door} alarm",
+        "state_attributes": {
+          "condition": {
+            "name": "Condition",
+            "state": {
+              "door_forced": "Door forced",
+              "door_left_open": "Door left open"
+            }
+          }
+        }
+      },
+      "engineer_mode": {
+        "name": "Engineer mode"
+      },
+      "controller_mains_fault": {
+        "name": "Controller Mains Fault",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "controller_battery_fault": {
+        "name": "Controller Battery Fault",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "controller_psu_fault": {
+        "name": "Controller PSU Fault",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "controller_aux_fuse_fault": {
+        "name": "Controller Aux. Fuse Fault",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "controller_external_bell_fuse_fault": {
+        "name": "Controller External Bell Fuse Fault",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "controller_internal_bell_fuse_fault": {
+        "name": "Controller Internal Bell Fuse Fault",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "bell_tamper": {
+        "name": "Bell Tamper",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "controller_cabinet_tamper": {
+        "name": "Controller Cabinet Tamper",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "controller_aux_tamper_1": {
+        "name": "Controller Aux. Tamper 1",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "controller_aux_tamper_2": {
+        "name": "Controller Aux. Tamper 2",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "controller_antenna_tamper": {
+        "name": "Controller Antenna Tamper",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "controller_rf_jamming": {
+        "name": "Controller RF Jamming",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "fail_to_communicate": {
+        "name": "Fail to communicate",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "x_bus_cable_fault": {
+        "name": "X-BUS Cable Fault",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "code_tamper": {
+        "name": "Code Tamper",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "ethernet_link": {
+        "name": "Ethernet link",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
+      },
+      "network_fault": {
+        "name": "Network Fault",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "ok": "OK",
+              "alert": "Alert",
+              "inhibit": "Inhibit",
+              "isolate": "Isolate"
+            }
+          }
+        }
       }
     },
     "event": {
       "door_access": {
+        "name": "{door} access",
         "state_attributes": {
           "event_type": {
             "state": {
               "access_granted": "Access granted",
               "access_denied": "Access denied",
-              "passback_denied": "Access denied (passback)",
-              "exit_request": "Exit request",
-              "forced_open": "Forced open",
-              "left_open": "Left open",
-              "door_restored": "Door restored",
+              "access_denied_passback": "Access denied passback",
+              "request_to_exit": "Request to exit",
+              "door_forced": "Door forced",
+              "door_left_open": "Door left open",
+              "door_restoral": "Door restoral",
               "reader_locked": "Reader locked",
               "reader_unlocked": "Reader unlocked"
             }
@@ -312,56 +393,25 @@
           "reason": {
             "name": "Reason",
             "state": {
-              "invalid_pin": "Invalid PIN",
+              "invalid_pin": "Invalid pin",
               "invalid_card_format": "Invalid card format",
               "unknown": "Unknown"
             }
           },
           "source": {
+            "name": "Source",
             "state": {
               "home_assistant": "Home Assistant",
               "panel": "Panel user",
               "panel_automatic": "Panel (automatic)",
               "remote": "Remote (EDP)"
-            },
-            "name": "Source"
+            }
           }
-        },
-        "name": "{door} access"
+        }
       },
       "panel_event": {
         "name": "Event",
         "state_attributes": {
-          "code": {
-            "name": "Code"
-          },
-          "address": {
-            "name": "Address"
-          },
-          "description": {
-            "name": "Description"
-          },
-          "panel_time": {
-            "name": "Panel time"
-          },
-          "user": {
-            "name": "User"
-          },
-          "user_id": {
-            "name": "User ID"
-          },
-          "zone": {
-            "name": "Zone"
-          },
-          "area": {
-            "name": "Area"
-          },
-          "door": {
-            "name": "Door"
-          },
-          "name": {
-            "name": "Name"
-          },
           "event_type": {
             "state": {
               "ar": "AC restoral",
@@ -510,91 +560,136 @@
               "zm": "Zone masked",
               "zo": "Zone open",
               "zx": "Zone short",
-              "unknown": "Unknown event"
+              "unknown": "Unknown"
             }
+          },
+          "code": {
+            "name": "Code"
+          },
+          "name": {
+            "name": "Name"
+          },
+          "address": {
+            "name": "Address"
+          },
+          "description": {
+            "name": "Description"
+          },
+          "panel_time": {
+            "name": "Panel time"
+          },
+          "user": {
+            "name": "User"
+          },
+          "user_id": {
+            "name": "User ID"
+          },
+          "zone": {
+            "name": "Zone"
+          },
+          "area": {
+            "name": "Area"
+          },
+          "door": {
+            "name": "Door"
           }
         }
       }
     },
-    "alarm_control_panel": {
-      "area": {
+    "lock": {
+      "door": {
         "state_attributes": {
+          "door_mode": {
+            "name": "Door mode",
+            "state": {
+              "locked": "Door Locked",
+              "normal": "Door Normal",
+              "unlocked": "Door Unlocked"
+            }
+          },
           "changed_by_id": {
             "name": "Changed by user ID"
           },
           "source": {
+            "name": "Source",
             "state": {
               "home_assistant": "Home Assistant",
               "panel": "Panel user",
               "panel_automatic": "Panel (automatic)",
               "remote": "Remote (EDP)"
-            },
-            "name": "Source"
+            }
           },
-          "last_set": {
-            "name": "Last set"
-          },
-          "last_set_by": {
-            "name": "Last set by"
-          },
-          "last_unset": {
-            "name": "Last unset"
-          },
-          "last_unset_by": {
-            "name": "Last unset by"
+          "lock_output": {
+            "name": "Follows output"
           }
+        }
+      }
+    },
+    "select": {
+      "door_mode": {
+        "name": "{door} door mode",
+        "state": {
+          "locked": "Door Locked",
+          "normal": "Door Normal",
+          "unlocked": "Door Unlocked"
+        }
+      },
+      "door_lock_output": {
+        "name": "{door} lock follows output",
+        "state": {
+          "none": "None"
         }
       }
     },
     "sensor": {
       "battery_voltage": {
-        "name": "Battery voltage"
+        "name": "Battery Voltage"
       },
       "aux_voltage": {
-        "name": "Auxiliary voltage"
+        "name": "Aux. Voltage"
       },
       "aux_current": {
-        "name": "Auxiliary current"
+        "name": "Aux. Current"
       },
-      "mains_frequency": {
-        "name": "Mains frequency"
+      "ac_frequency": {
+        "name": "Mains time sync."
       },
       "zone_status": {
+        "name": "{zone} status",
         "state": {
           "normal": "Normal",
-          "inhibited": "Inhibited",
-          "isolated": "Isolated",
-          "soak": "Soak test",
+          "inhibit": "Inhibit",
+          "isolate": "Isolate",
+          "soak": "Soak",
           "tamper": "Tamper",
           "alarm": "Alarm",
-          "ok_not_recent": "OK (not recent)",
+          "ok_not_recent": "OK not recent",
           "trouble": "Trouble"
-        },
-        "name": "{zone} status"
+        }
       },
       "zone_input": {
+        "name": "{zone} input",
         "state": {
           "closed": "Closed",
           "open": "Open",
-          "short": "Short circuit",
-          "disconnected": "Disconnected",
-          "pir_masked": "Masked",
-          "dc_substitution": "DC substitution",
+          "short": "Short",
+          "disconnect": "Disconnect",
+          "masked": "Masked",
+          "dc_sub": "DC Sub",
           "sensor_missing": "Sensor missing",
           "offline": "Offline"
         },
         "state_attributes": {
           "logic_input": {
-            "name": "Logic input"
+            "name": "LOGIC_INPUT"
           },
           "proc_state": {
-            "name": "Processing state"
+            "name": "PROC_STATE"
           },
           "alarm_state": {
-            "name": "Alarm state"
+            "name": "ALARM_STATE"
           }
-        },
-        "name": "{zone} input"
+        }
       }
     }
   }

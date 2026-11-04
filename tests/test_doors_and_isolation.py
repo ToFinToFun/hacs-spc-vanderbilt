@@ -217,11 +217,11 @@ def test_access_attributes_from_captured_events() -> None:
     [
         ("DG", "access_granted"),
         ("DD", "access_denied"),
-        ("DI", "passback_denied"),
-        ("DX", "exit_request"),
-        ("DF", "forced_open"),
-        ("DN", "left_open"),
-        ("DR", "door_restored"),
+        ("DI", "access_denied_passback"),
+        ("DX", "request_to_exit"),
+        ("DF", "door_forced"),
+        ("DN", "door_left_open"),
+        ("DR", "door_restoral"),
         ("RL", "reader_locked"),
         ("RG", "reader_unlocked"),
     ],
@@ -257,13 +257,13 @@ def test_door_alarm_follows_forced_and_left_open_until_restored() -> None:
     assert sensor.translation_placeholders == {"door": "Entredörr"}
     sensor._handle_door_event(_event("DN", "3", "Entredörr"))
     assert sensor.is_on is True
-    assert sensor.extra_state_attributes == {"condition": "left_open"}
+    assert sensor.extra_state_attributes == {"condition": "door_left_open"}
     sensor._handle_door_event(_event("DG", "3", GRANTED))
     assert sensor.is_on is True
     sensor._handle_door_event(_event("DR", "3", "Entredörr"))
     assert sensor.is_on is False
     sensor._handle_door_event(_event("DF", "3", "Entredörr"))
-    assert sensor.extra_state_attributes == {"condition": "forced_open"}
+    assert sensor.extra_state_attributes == {"condition": "door_forced"}
     assert sensor.async_write_ha_state.call_count == 3
 
 

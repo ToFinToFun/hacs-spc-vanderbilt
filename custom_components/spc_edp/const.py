@@ -52,17 +52,18 @@ SIGNAL_NEW_OUTPUTS = "spc_edp_new_outputs_{}"
 SIGNAL_UPDATE_SYSTEM = "spc_edp_update_system_{}"
 SIGNAL_PANEL_EVENT = "spc_edp_panel_event_{}"
 
-# SIA access-control codes forwarded to door event entities. DG, DD, DX, DF
-# and DR were observed on an SPC4300; DN, DI, RL and RG follow the SPC SIA
-# code table. DR restores both a forced door and one left open.
+# SIA access-control codes forwarded to door event entities, keyed by their
+# names in Vanderbilt's SIA code table. DG, DD, DX, DF and DR were observed on
+# an SPC4300; DN, DI, RL and RG follow the table. DR restores both a forced
+# door and one left open.
 DOOR_ACCESS_EVENT_TYPES: dict[str, str] = {
     "DG": "access_granted",
     "DD": "access_denied",
-    "DI": "passback_denied",
-    "DX": "exit_request",
-    "DF": "forced_open",
-    "DN": "left_open",
-    "DR": "door_restored",
+    "DI": "access_denied_passback",
+    "DX": "request_to_exit",
+    "DF": "door_forced",
+    "DN": "door_left_open",
+    "DR": "door_restoral",
     "RL": "reader_locked",
     "RG": "reader_unlocked",
 }
@@ -86,7 +87,9 @@ AREA_CHANGE_SIA_CODES = frozenset(
     {"CG", "CL", "CP", "CQ", "CS", "NL", "OA", "OG", "OP", "OQ", "OR", "OS"}
 )
 
-# Access-denied reason codes in the last field of a DD description.
+# Access-denied reason codes in the last field of a DD description, as the
+# panel's access log words them ("Entry Denied - Invalid pin",
+# "Entry Denied - INVALID CARD FORMAT").
 ACCESS_DENIED_REASONS: dict[str, str] = {
     "4": "invalid_pin",
     "7": "invalid_card_format",
@@ -105,25 +108,6 @@ SOURCE_REMOTE = "remote"
 # Events the panel re-sends after a redial carry their original timestamp.
 DUPLICATE_EVENT_MEMORY = 128
 
-# Panel-wide conditions raised and cleared by SIA events (Vanderbilt's SIA
-# code table). Several devices can raise the same condition, so it stays on
-# until each address that raised it is restored.
-SYSTEM_CONDITIONS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
-    "mains_fault": (frozenset({"AT"}), frozenset({"AR"})),
-    "battery_fault": (frozenset({"YT", "YM"}), frozenset({"YR"})),
-    "psu_fault": (frozenset({"YP"}), frozenset({"YQ"})),
-    "low_voltage": (frozenset({"XD"}), frozenset({"XG"})),
-    "communication_fault": (frozenset({"YC", "YS"}), frozenset({"YK"})),
-    "modem_fault": (frozenset({"LT"}), frozenset({"LR"})),
-    "network_fault": (frozenset({"NT"}), frozenset({"NR"})),
-    "expansion_fault": (frozenset({"ET", "EM"}), frozenset({"ER", "EN"})),
-    "expansion_tamper": (frozenset({"ES"}), frozenset({"EJ"})),
-    "rf_jamming": (frozenset({"XQ"}), frozenset({"XH"})),
-    "rf_tamper": (frozenset({"XS"}), frozenset({"XJ"})),
-    "siren_fault": (frozenset({"YA"}), frozenset({"YH"})),
-    "service_required": (frozenset({"YX"}), frozenset({"YZ"})),
-}
-TAMPER_CONDITIONS = frozenset({"expansion_tamper", "rf_tamper"})
 
 # SIA codes whose address is a zone, for naming it on the panel event entity.
 ZONE_EVENT_CODES = frozenset(

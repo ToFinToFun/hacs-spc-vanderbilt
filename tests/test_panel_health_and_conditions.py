@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from spcedp import Output, SystemStatus, Zone, parse_panel_time
+from spcedp import SYSTEM_ALERTS, Output, SystemStatus, Zone, parse_panel_time
 from spcedp.events import SiaEvent
 from spcedp.panel import Area
 
@@ -14,9 +14,10 @@ from custom_components.spc_edp.attribution import CommandTracker
 from custom_components.spc_edp.binary_sensor import (
     SpcEdpEngineerModeBinarySensor,
     SpcEdpOutputBinarySensor,
-    SpcEdpSystemConditionBinarySensor,
+    SpcEdpSystemAlertBinarySensor,
     SpcEdpZoneFaultBinarySensor,
     SpcEdpZoneTamperBinarySensor,
+    system_alert_key,
 )
 from custom_components.spc_edp.event import SpcEdpPanelEvent
 from custom_components.spc_edp.sensor import (
@@ -76,7 +77,7 @@ def _hub(**panel: object) -> MagicMock:
     [
         ("0", "0", None, False),
         ("1", "0", None, False),
-        ("3", "2", "disconnected", False),
+        ("3", "2", "disconnect", False),
         ("6", "2", "sensor_missing", False),
         ("2", "0", "short", False),
         ("0", "7", "trouble", False),
@@ -97,9 +98,9 @@ def test_zone_status_and_input_sensors() -> None:
     hub = _hub(zones={36: _zone("3", "2")})
     status = SpcEdpZoneStatusSensor(hub, 36)
     input_sensor = SpcEdpZoneInputSensor(hub, 36)
-    assert status.native_value == "isolated"
+    assert status.native_value == "isolate"
     assert "tamper" in status.options
-    assert input_sensor.native_value == "disconnected"
+    assert input_sensor.native_value == "disconnect"
     assert input_sensor.extra_state_attributes == {
         "logic_input": "3",
         "proc_state": "2",
@@ -125,31 +126,44 @@ def test_output_and_panel_health() -> None:
         "battery_voltage": 13.5,
         "aux_voltage": None,
         "aux_current": 220.0,
-        "mains_frequency": 50.0,
+        "ac_frequency": 50.0,
     }
     assert SpcEdpEngineerModeBinarySensor(_hub()).available is False
 
 
-def test_system_condition_latches_per_address() -> None:
-    sensor = SpcEdpSystemConditionBinarySensor(_hub(), "expansion_fault")
-    sensor.async_write_ha_state = MagicMock()  # type: ignore[method-assign]
-    assert sensor.is_on is False
-    sensor._handle_event(_event("ET", "2"))
-    sensor._handle_event(_event("EM", "5"))
-    sensor._handle_event(_event("ZO", "5"))  # unrelated: ignored
-    assert sensor.is_on is True
-    assert sensor.extra_state_attributes["active"] == ["2", "5"]
-    sensor._handle_event(_event("ER", "2"))
-    assert sensor.is_on is True
-    sensor._handle_event(_event("EN", "5", "Expansion 5"))
-    assert sensor.is_on is False
-    assert sensor.extra_state_attributes["last_event"] == "EN 5 Expansion 5"
-    assert sensor.async_write_ha_state.call_count == 4
+def _system_alert(alert_id: int):
+    return next(alert for alert in SYSTEM_ALERTS if alert.id == alert_id)
 
 
-def test_tamper_conditions_use_tamper_device_class() -> None:
-    assert SpcEdpSystemConditionBinarySensor(_hub(), "rf_tamper").device_class == "tamper"
-    assert SpcEdpSystemConditionBinarySensor(_hub(), "mains_fault").device_class == "problem"
+@pytest.mark.parametrize(
+    ("masks", "alert_id", "on", "status"),
+    [
+        (("00000000", "00000000", "00000000", "01000000"), 38, False, "isolate"),
+        (("00000000", "00000000", "00400000", "00000000"), 36, False, "inhibit"),
+        (("00200000", "00200000", "00000000", "00000000"), 2, True, "alert"),
+        (("00000001", "00000000", "00000000", "00000000"), 0, True, "ok"),
+        (("00000000", "00000000", "00000000", "00000000"), 7, False, "ok"),
+    ],
+)
+def test_system_alerts_follow_the_status_masks(
+    masks: tuple[str, str, str, str], alert_id: int, on: bool, status: str
+) -> None:
+    system = SystemStatus(
+        alert_input=masks[0], alert=masks[1], alert_inhibit=masks[2], alert_isolate=masks[3]
+    )
+    sensor = SpcEdpSystemAlertBinarySensor(_hub(system=system), _system_alert(alert_id))
+    assert sensor.is_on is on
+    assert sensor.extra_state_attributes == {"status": status}
+
+
+def test_system_alert_names_and_classes() -> None:
+    assert system_alert_key(_system_alert(3)) == "controller_aux_fuse_fault"
+    assert system_alert_key(_system_alert(20)) == "x_bus_cable_fault"
+    hub = _hub(system=SystemStatus())
+    assert SpcEdpSystemAlertBinarySensor(hub, _system_alert(7)).device_class == "tamper"
+    assert SpcEdpSystemAlertBinarySensor(hub, _system_alert(0)).device_class == "problem"
+    assert SpcEdpSystemAlertBinarySensor(hub, _system_alert(0)).available is False
+    assert SpcEdpSystemAlertBinarySensor(hub, _system_alert(0)).unique_id == "panel-system-alert-0"
 
 
 def test_panel_event_names_code_target_and_user() -> None:
@@ -202,8 +216,8 @@ def test_area_credits_the_panels_record_of_the_last_change() -> None:
     assert entity.changed_by == "Fjärrinstallatör"
     attributes = entity.extra_state_attributes
     assert attributes["source"] == "remote"
-    assert attributes["last_set_by"] == "Alice"
-    assert attributes["last_unset"].startswith("2026-11-03T16:57:20")
+    assert attributes["last_set_user_name"] == "Alice"
+    assert attributes["last_unset_time"].startswith("2026-11-03T16:57:20")
     # A later set at a keypad is credited once the panel records it.
     area.last_set_time = "17000003112026"
     entity._handle_area_update()
